@@ -3,7 +3,8 @@ import platform
 from ModuleFolders.Config.FilePathConfig import MACOS_APP_NAME
 
 
-UPSTREAM_RELEASE_API_URL = "https://api.github.com/repos/NEKOparapa/AiNiee/releases/latest"
+# fork build: 指向自己的仓库，避免官方正式版把打好补丁的构建覆盖回原版。
+UPSTREAM_RELEASE_API_URL = "https://api.github.com/repos/rakazzt/AiNiee/releases/latest"
 MACOS_RELEASE_API_URL = UPSTREAM_RELEASE_API_URL
 
 
