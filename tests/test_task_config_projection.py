@@ -116,6 +116,24 @@ class TaskConfigProjectionTests(unittest.TestCase):
         self.assertEqual(platform_data["extra_body"], {"provider": {"order": ["Google"]}, "custom": 1})
         self.assertEqual(params["extra_body"]["custom"], 1)
 
+    def test_max_tokens_reaches_the_requester(self):
+        """PR 1090 把 Sakura 的 max_tokens 从硬编码 512 改成读平台配置。
+
+        投影层不带上这个键，那条配置路径就永远是死的（只能回落 512），
+        和「UI 存了值但请求里没有」是同一类断链。
+        """
+        params = self._params_for("sakura_111111", {
+            "tag": "sakura_111111",
+            "api_format": "OpenAI",
+            "max_tokens": 2048,
+        })
+        self.assertEqual(params["max_tokens"], 2048)
+
+    def test_max_tokens_is_none_when_unset(self):
+        # 未配置时为 None，请求器按 `or 512` 回落，行为与改造前一致
+        params = self._params_for("zhipu_111111", {"tag": "zhipu_111111"})
+        self.assertIsNone(params["max_tokens"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -403,6 +403,10 @@ class TaskConfig(ConfigMixin, LogMixin, Base):
             # 否则请求器只能退回按 tag / URL 嗅探。
             "profile": platform_data.get("profile"),
             "preset_key": platform_data.get("preset_key"),
+            # Sakura 的 max_tokens 由硬编码 512 改为读平台配置（PR #1090），但投影层
+            # 不带上这个键，请求器就永远拿不到值、只能回落 512 —— 同「UI 存了值但请求里
+            # 没有」那一类断链。这里补上；未配置时为 None，请求器按 `or 512` 回落。
+            "max_tokens": platform_data.get("max_tokens"),
         }
 
         # 声明式选项 → 请求参数。没有声明 options 的平台拿到空 overlay，
