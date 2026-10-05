@@ -117,7 +117,7 @@ class PromptBuilderPolishing(Base):
         source_text_dict: dict,
         translation_text_dict: dict,
         previous_text_list: list[str],
-    ) -> tuple[list[dict], str, list[str]]:
+    ) -> tuple[list[dict], str, str, list[str]]:
         messages = []
         extra_log = []
 
@@ -126,6 +126,10 @@ class PromptBuilderPolishing(Base):
             system = PromptBuilderPolishing.build_system(config)
         else:
             system = config.polishing_prompt_selection["prompt_content"]
+
+        # 稳定前缀到此为止：下面按批次筛选的术语表 / 禁翻表 / 项目表每批都不同，
+        # 只能排在缓存断点之后（前缀缓存只认严格前缀，见 PromptCache 的说明）。
+        system_stable = system
 
         # 术语表
         if config.prompt_dictionary_switch:
@@ -205,4 +209,4 @@ class PromptBuilderPolishing(Base):
                     }
                 )
 
-        return messages, system, extra_log
+        return messages, system, extra_log, system_stable

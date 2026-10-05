@@ -2,6 +2,7 @@ from ModuleFolders.Base.Base import Base
 from ModuleFolders.Log.Log import LogMixin
 from ModuleFolders.Infrastructure.LLMRequester.LLMClientFactory import LLMClientFactory
 from ModuleFolders.Infrastructure.LLMRequester.ThinkingProfiles import build_thinking_params
+from ModuleFolders.Infrastructure.LLMRequester import PromptCache
 
 import json
 from openai.types.chat import ChatCompletion
@@ -29,6 +30,7 @@ class OpenaiRequester(LogMixin, Base):
         response_think = ""
         prompt_tokens = 0
         completion_tokens = 0
+        cache_hit_tokens = 0
         finish_reason = None
 
         for line in raw_text.splitlines():
@@ -65,6 +67,8 @@ class OpenaiRequester(LogMixin, Base):
             if usage:
                 prompt_tokens = usage.get("prompt_tokens", 0)
                 completion_tokens = usage.get("completion_tokens", 0)
+                # 自动前缀缓存下 prompt_tokens 已包含命中部分，这里只取命中量做统计
+                cache_hit_tokens = PromptCache.openai_cache_hit_tokens(usage)
 
         # 流式回复被max_tokens截断：抛错让上层按失败重试，不能把半截译文当成功返回
         if finish_reason == "length":
@@ -72,6 +76,12 @@ class OpenaiRequester(LogMixin, Base):
                 "Response truncated by max_tokens (finish_reason=length, SSE)；"
                 "可在该平台设置里调大「最大生成长度」，或改用上限更高的模型"
             )
+
+        PromptCache.record_usage(cache_hit_tokens, 0, max(0, prompt_tokens - cache_hit_tokens))
+        self.debug(
+            f"提示词缓存: 本次命中 {cache_hit_tokens} / 未命中 {max(0, prompt_tokens - cache_hit_tokens)} Tokens；"
+            f"{PromptCache.format_usage()}"
+        )
 
         return response_think, response_content, prompt_tokens, completion_tokens
 
@@ -138,10 +148,18 @@ class OpenaiRequester(LogMixin, Base):
         except Exception:
             completion_tokens = 0
 
+        # OpenAI / DeepSeek / OpenRouter 的 prompt_tokens 已包含命中部分，这里只取命中量做统计
+        cache_hit_tokens = PromptCache.openai_cache_hit_tokens(getattr(response, "usage", None))
+        PromptCache.record_usage(cache_hit_tokens, 0, max(0, prompt_tokens - cache_hit_tokens))
+        self.debug(
+            f"提示词缓存: 本次命中 {cache_hit_tokens} / 未命中 {max(0, prompt_tokens - cache_hit_tokens)} Tokens；"
+            f"{PromptCache.format_usage()}"
+        )
+
         return response_think, response_content, prompt_tokens, completion_tokens
 
     # 发起请求
-    def request_openai(self, messages, system_prompt, platform_config) -> tuple[bool, str, str, int, int]:
+    def request_openai(self, messages, system_prompt, platform_config, system_prompt_stable: str = "") -> tuple[bool, str, str, int, int]:
         try:
             # 获取具体配置
             model_name = platform_config.get("model_name")
@@ -150,12 +168,23 @@ class OpenaiRequester(LogMixin, Base):
             extra_body = platform_config.get("extra_body", {})
 
             # 插入系统消息
+            # 需要显式断点的 provider（Anthropic 系、OpenRouter 透传）走「稳定块(带
+            # cache_control) + 变化块」的文本块形式；其余（OpenAI / DeepSeek / Gemini）
+            # 本来就是自动前缀缓存，多送 cache_control 没有收益，还可能被严格校验字段的
+            # 中转站直接拒收，所以保持单字符串。
             if system_prompt:
+                system_content = system_prompt
+                if PromptCache.supports_explicit_cache(platform_config):
+                    system_blocks = PromptCache.build_system_blocks(system_prompt_stable, system_prompt)
+                    if system_blocks:
+                        system_content = system_blocks
+                        PromptCache.announce_explicit_cache(system_prompt_stable, platform_config, self)
+
                 messages.insert(
                     0,
                     {
                         "role": "system",
-                        "content": system_prompt
+                        "content": system_content
                     })
 
             # 从工厂获取客户端

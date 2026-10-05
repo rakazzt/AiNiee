@@ -427,7 +427,7 @@ class SimpleExecutor(ConfigMixin, LogMixin, Base):
             index_map = [item['text_index'] for item in batch_items]
 
             # 构建提示词
-            messages, system_prompt, _ = PromptBuilder.generate_prompt(
+            messages, system_prompt, _, _ = PromptBuilder.generate_prompt(
                 config, source_text_dict, [], file_source_lang
             )
             
@@ -597,7 +597,7 @@ class SimpleExecutor(ConfigMixin, LogMixin, Base):
             translation_text_dict = {str(idx): item['translation_text'] for idx, item in enumerate(batch_items)}
             index_map = [item['text_index'] for item in batch_items]
 
-            messages, system_prompt, _ = PromptBuilderPolishing.generate_prompt(
+            messages, system_prompt, _, _ = PromptBuilderPolishing.generate_prompt(
                 config, source_text_dict, translation_text_dict, []
             )
             

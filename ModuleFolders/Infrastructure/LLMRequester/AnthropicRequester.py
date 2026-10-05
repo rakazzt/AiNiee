@@ -2,6 +2,7 @@ from ModuleFolders.Base.Base import Base
 from ModuleFolders.Log.Log import LogMixin
 from ModuleFolders.Infrastructure.LLMRequester.LLMClientFactory import LLMClientFactory
 from ModuleFolders.Infrastructure.LLMRequester.ModelConfigHelper import ModelConfigHelper
+from ModuleFolders.Infrastructure.LLMRequester import PromptCache
 
 
 # 接口请求器
@@ -9,7 +10,7 @@ class AnthropicRequester(LogMixin, Base):
     def __init__(self) -> None:
         pass
 
-    def request_anthropic(self, messages, system_prompt, platform_config) -> tuple[bool, str, str, int, int]:
+    def request_anthropic(self, messages, system_prompt, platform_config, system_prompt_stable: str = "") -> tuple[bool, str, str, int, int]:
         try:
             model_name = platform_config.get("model_name")
             request_timeout = platform_config.get("request_timeout", 60)
@@ -26,10 +27,20 @@ class AnthropicRequester(LogMixin, Base):
             ):
                 messages = messages[:-1]
 
+            # 显式缓存断点：Anthropic 不声明 cache_control 就完全不缓存，等于每个批次都按
+            # 原价重发整份系统提示词。断点落在「整份任务不变」的稳定前缀末尾，其后按批次
+            # 变化的内容照常按原价计费（它们本来也缓存不了）。
+            system_param = system_prompt
+            if PromptCache.supports_explicit_cache(platform_config):
+                system_blocks = PromptCache.build_system_blocks(system_prompt_stable, system_prompt or "")
+                if system_blocks:
+                    system_param = system_blocks
+                    PromptCache.announce_explicit_cache(system_prompt_stable, platform_config, self)
+
             # 参数基础配置
             base_params = {
                 "model": model_name,
-                "system": system_prompt,
+                "system": system_param,
                 "messages": messages,
                 "timeout": request_timeout,
                 "max_tokens": max_tokens,
@@ -83,15 +94,22 @@ class AnthropicRequester(LogMixin, Base):
             return True, None, None, None, None
 
         # 获取指令消耗（Anthropic 使用 input_tokens）
+        # 注意：input_tokens 只统计断点之后、既没读也没写的 token，不含缓存命中与写入。
+        # 直接拿它当 prompt_tokens，开了缓存之后统计反而变小 —— 看着像省钱，其实是少算。
         try:
-            prompt_tokens = int(response.usage.input_tokens)
+            cache_read, cache_write, prompt_tokens = PromptCache.anthropic_usage_totals(response.usage)
         except Exception:
-            prompt_tokens = 0
+            cache_read, cache_write, prompt_tokens = 0, 0, 0
 
         # 获取回复消耗（Anthropic 使用 output_tokens）
         try:
             completion_tokens = int(response.usage.output_tokens)
         except Exception:
             completion_tokens = 0
+
+        PromptCache.record_usage(cache_read, cache_write, prompt_tokens - cache_read - cache_write)
+        self.debug(
+            f"提示词缓存: 本次命中 {cache_read} / 写入 {cache_write} Tokens；{PromptCache.format_usage()}"
+        )
 
         return False, response_think, response_content, prompt_tokens, completion_tokens

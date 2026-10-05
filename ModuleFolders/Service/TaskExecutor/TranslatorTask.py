@@ -42,6 +42,8 @@ class TranslatorTask(LogMixin, Base):
         # 提示词与信息内容存储
         self.messages = []
         self.system_prompt = ""
+        # 系统提示词里「整份任务逐字节不变」的前缀（前缀缓存断点落在这里）
+        self.system_prompt_stable = ""
 
         # 输出日志存储
         self.extra_log = []
@@ -101,7 +103,7 @@ class TranslatorTask(LogMixin, Base):
                 self.source_lang,
             )
         else:
-            self.messages, self.system_prompt, self.extra_log = PromptBuilder.generate_prompt(
+            self.messages, self.system_prompt, self.extra_log, self.system_prompt_stable = PromptBuilder.generate_prompt(
                 self.config,
                 self.source_text_dict,
                 self.previous_text_list,
@@ -146,7 +148,8 @@ class TranslatorTask(LogMixin, Base):
         skip, response_think, response_content, prompt_tokens, completion_tokens = requester.sent_request(
             self.messages,
             self.system_prompt,
-            platform_config
+            platform_config,
+            self.system_prompt_stable
         )
 
         # 如果请求结果标记为 skip，即有运行错误发生，则直接返回错误信息，停止后续任务

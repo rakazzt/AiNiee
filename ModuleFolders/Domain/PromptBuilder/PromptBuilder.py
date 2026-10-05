@@ -877,7 +877,13 @@ class PromptBuilder(Base):
 
 
     # 生成信息结构 - 通用
-    def generate_prompt(config, source_text_dict: dict, previous_text_list: list[str], source_lang) -> tuple[list[dict], str, list[str]]:
+    # 返回的 system 是完整系统提示词；system_stable 是其中「整份任务里逐字节不变」的前缀。
+    # 前缀缓存只认严格前缀：不变的内容必须连续排在最前面，一旦按批次变化的内容
+    # （术语表 / 禁翻表 / 项目表 / 翻译示例）插在中间，它之后的所有内容都会跟着作废——
+    # Anthropic 会退化成「每轮都在写缓存、永远读不到」（写入按 1.25 倍计费），
+    # OpenAI / DeepSeek 的自动缓存也只能命中那一段很短的基础提示词，通常低于
+    # 它们 1024 token 的最小可缓存长度，等于完全没有缓存。
+    def generate_prompt(config, source_text_dict: dict, previous_text_list: list[str], source_lang) -> tuple[list[dict], str, str, list[str]]:
         # 储存指令
         messages = []
         # 储存额外日志
@@ -890,7 +896,29 @@ class PromptBuilder(Base):
             custom_prompt = config.translation_prompt_selection["prompt_content"]
             system = PromptBuilder._replace_language_placeholders(custom_prompt, config, source_lang)
 
+        # ---- 以下三块与当前批次无关，整份任务内保持不变，因此排在最前面 ----
+        if getattr(config, "world_building_switch", False):
+            world_building = PromptBuilder.build_world_building(config)
+            if world_building != "":
+                system += world_building
+                extra_log.append(world_building)
 
+        if getattr(config, "writing_style_switch", False):
+            writing_style = PromptBuilder.build_writing_style(config)
+            if writing_style != "":
+                system += writing_style
+                extra_log.append(writing_style)
+
+        if config.translation_example_switch == True:
+            translation_example = PromptBuilder.build_translation_example(config)
+            if translation_example != "":
+                system += translation_example
+                extra_log.append(translation_example)
+
+        # 稳定前缀到此为止：缓存断点落在这里，后面按批次变化的内容不影响它
+        system_stable = system
+
+        # ---- 以下内容按当前批次筛选，每批都不同，只能排在最后 ----
         # 如果开启术语表
         if config.prompt_dictionary_switch == True:
             glossary = PromptBuilder.build_glossary_prompt(config, source_text_dict)
@@ -923,31 +951,12 @@ class PromptBuilder(Base):
             system += project_non_translate
             extra_log.append(project_non_translate)
 
-
         # 如果开启翻译示例
         if getattr(config, "characterization_switch", False):
             characterization = PromptBuilder.build_characterization(config, source_text_dict)
             if characterization != "":
                 system += characterization
                 extra_log.append(characterization)
-
-        if getattr(config, "world_building_switch", False):
-            world_building = PromptBuilder.build_world_building(config)
-            if world_building != "":
-                system += world_building
-                extra_log.append(world_building)
-
-        if getattr(config, "writing_style_switch", False):
-            writing_style = PromptBuilder.build_writing_style(config)
-            if writing_style != "":
-                system += writing_style
-                extra_log.append(writing_style)
-
-        if config.translation_example_switch == True:
-            translation_example = PromptBuilder.build_translation_example(config)
-            if translation_example != "":
-                system += translation_example
-                extra_log.append(translation_example)
 
         # 构建动态few-shot
         switch_A = config.few_shot_and_example_switch # 打开动态示例开关时
@@ -1000,4 +1009,4 @@ class PromptBuilder(Base):
             messages.append({"role": "assistant", "content": fol_prompt})
 
 
-        return messages, system, extra_log
+        return messages, system, extra_log, system_stable

@@ -11,7 +11,10 @@ class LLMRequester():
         pass
 
     # 分发请求
-    def sent_request(self, messages: list[dict], system_prompt: str, platform_config: dict) -> tuple[bool, str, str, int, int]:
+    # system_prompt_stable：system_prompt 里「整份任务逐字节不变」的前缀，仅供需要显式
+    # 缓存断点的 provider（Anthropic 系 / OpenRouter 透传）切分缓存断点使用；其余请求器
+    # 忽略它，行为与此前一致。
+    def sent_request(self, messages: list[dict], system_prompt: str, platform_config: dict, system_prompt_stable: str = "") -> tuple[bool, str, str, int, int]:
         # 获取平台参数
         target_platform = platform_config.get("target_platform")
         api_format = platform_config.get("api_format")
@@ -50,6 +53,7 @@ class LLMRequester():
                 messages,
                 system_prompt,
                 platform_config,
+                system_prompt_stable,
             )
         elif target_platform.startswith("amazonbedrock"):
             amazonbedrock_requester = AmazonbedrockRequester()
@@ -64,6 +68,7 @@ class LLMRequester():
                 messages,
                 system_prompt,
                 platform_config,
+                system_prompt_stable,
             )
 
         return skip, response_think, response_content, prompt_tokens, completion_tokens

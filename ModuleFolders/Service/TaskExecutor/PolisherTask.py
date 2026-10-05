@@ -31,6 +31,8 @@ class PolisherTask(LogMixin, Base):
 
         self.messages = []
         self.system_prompt = ""
+        # 系统提示词里「整份任务逐字节不变」的前缀（前缀缓存断点落在这里）
+        self.system_prompt_stable = ""
         self.extra_log = []
 
     def set_items(self, items: list[CacheItem]) -> None:
@@ -48,7 +50,7 @@ class PolisherTask(LogMixin, Base):
         self.source_text_dict = self.text_processor.replace_all(self.config, self.source_text_dict)
         self.translation_text_dict = self.text_processor.replace_all(self.config, self.translation_text_dict)
 
-        self.messages, self.system_prompt, self.extra_log = PromptBuilderPolishing.generate_prompt(
+        self.messages, self.system_prompt, self.extra_log, self.system_prompt_stable = PromptBuilderPolishing.generate_prompt(
             self.config,
             self.source_text_dict,
             self.translation_text_dict,
@@ -82,6 +84,7 @@ class PolisherTask(LogMixin, Base):
             self.messages,
             self.system_prompt,
             platform_config,
+            self.system_prompt_stable,
         )
 
         if skip:
