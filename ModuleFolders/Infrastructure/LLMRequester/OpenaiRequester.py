@@ -29,6 +29,7 @@ class OpenaiRequester(LogMixin, Base):
         response_think = ""
         prompt_tokens = 0
         completion_tokens = 0
+        finish_reason = None
 
         for line in raw_text.splitlines():
             # 跳过空行和非data行（如 event:、id:、retry:）
@@ -55,12 +56,19 @@ class OpenaiRequester(LogMixin, Base):
                 delta_reasoning = delta.get("reasoning_content") or delta.get("reasoning")
                 if delta_reasoning:
                     response_think += delta_reasoning
+                # 记录最后一个带 finish_reason 的 chunk（截断检测用，与 _extract_from_completion 对称）
+                if choices[0].get("finish_reason"):
+                    finish_reason = choices[0]["finish_reason"]
 
             # 提取 usage 信息（通常在最后一个 chunk）
             usage = chunk.get("usage")
             if usage:
                 prompt_tokens = usage.get("prompt_tokens", 0)
                 completion_tokens = usage.get("completion_tokens", 0)
+
+        # 流式回复被max_tokens截断：抛错让上层按失败重试，不能把半截译文当成功返回
+        if finish_reason == "length":
+            raise RuntimeError("Response truncated by max_tokens (finish_reason=length, SSE)")
 
         return response_think, response_content, prompt_tokens, completion_tokens
 
@@ -95,6 +103,14 @@ class OpenaiRequester(LogMixin, Base):
         返回: (response_think, response_content, prompt_tokens, completion_tokens)
         """
         message = response.choices[0].message
+
+        # finish_reason=length意味着回复被max_tokens截断：截断的译文直接写入输出会造成
+        # 半句/残留占位符，必须抛错让外层except按失败处理、上层重试，不能当成功返回
+        finish_reason = getattr(response.choices[0], "finish_reason", None)
+        if finish_reason == "length":
+            raise RuntimeError(
+                f"Response truncated by max_tokens (finish_reason=length), model {getattr(response, 'model', '?')}"
+            )
 
         # 纯推理模型可能只返回 reasoning 而没有 content，这里统一成空串避免后续判断报错
         content = message.content or ""
