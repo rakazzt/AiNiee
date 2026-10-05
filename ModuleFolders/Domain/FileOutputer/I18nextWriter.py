@@ -78,7 +78,9 @@ class I18nextWriter(BaseTranslatedWriter):
                 if item.translation_status not in (TranslationStatus.TRANSLATED, TranslationStatus.POLISHED):
                     continue
                 translated_text = item.final_text
-                if not translated_text:
+                # 与XlsxWriter一致：纯空白的"译文"（模型偶发返回空格）不能把原本有效的
+                # 字符串覆盖成空白，否则该键在游戏里会显示为空
+                if not translated_text or not translated_text.strip():
                     continue
                 self._set_value_by_path(output_data, path, translated_text)
 
