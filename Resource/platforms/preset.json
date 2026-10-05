@@ -310,6 +310,43 @@
                 "think_depth"
             ]
         },
+        "openrouter": {
+            "tag": "openrouter",
+            "group": "online",
+            "name": "OpenRouter",
+            "api_url": "https://openrouter.ai/api/v1",
+            "api_key": "",
+            "api_format": "OpenAI",
+            "icon": "openrouter",
+            "rpm_limit": 200,
+            "model": "google/gemini-3.8-flash",
+            "temperature": 1.0,
+            "think_switch": false,
+            "think_depth": "medium",
+            "auto_complete": true,
+            "model_datas": [
+                "google/gemini-3.8-flash",
+                "anthropic/claude-sonnet-5.5",
+                "anthropic/claude-opus-5.5",
+                "openai/gpt-6.1-sol",
+                "deepseek/deepseek-v4.1-flash",
+                "deepseek/deepseek-v4-pro",
+                "z-ai/glm-5.3",
+                "qwen/qwen3.8-max-prime",
+                "moonshotai/kimi-k3",
+                "x-ai/grok-4.7"
+            ],
+            "key_in_settings": [
+                "api_key",
+                "model",
+                "rpm_limit",
+                "auto_complete",
+                "temperature",
+                "extra_body",
+                "think_switch",
+                "think_depth"
+            ]
+        },
         "custom": {
             "tag": "custom",
             "group": "custom",

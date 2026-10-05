@@ -86,6 +86,26 @@ class OpenaiRequester(LogMixin, Base):
             or "bailian" in api_url
             or ("aliyuncs.com" in api_url and "compatible-mode" in api_url)
         )
+        is_openrouter = target_platform.startswith("openrouter") or "openrouter.ai" in api_url
+
+        # OpenRouter 的思考强度走原生 reasoning.effort；它与顶层 reasoning_effort 是等价
+        # 写法且不允许同时出现，所以这里只发 reasoning，并复用界面的思考强度档位。
+        # 关闭思考时用 effort=none（OpenRouter 没有 enabled 字段）。
+        if is_openrouter:
+            valid_efforts = {"max", "xhigh", "high", "medium", "low", "minimal", "none"}
+            effort = think_depth if think_depth in valid_efforts else "medium"
+            if not platform_config.get("think_switch"):
+                effort = "none"
+
+            # 保留用户自己在 extra_body 里写的 reasoning 附加项（如 summary）。
+            raw_reasoning = extra_body.get("reasoning", {})
+            reasoning = copy.deepcopy(raw_reasoning) if isinstance(raw_reasoning, dict) else {}
+            reasoning["effort"] = effort
+            extra_body["reasoning"] = reasoning
+
+            params.pop("reasoning_effort", None)
+            extra_body.pop("reasoning_effort", None)
+            return params
 
         # Grok 4.6 的推理无法关闭，始终按界面强度发送 reasoning_effort。
         if is_xai:
@@ -185,8 +205,10 @@ class OpenaiRequester(LogMixin, Base):
                 delta = choices[0].get("delta", {})
                 if delta.get("content"):
                     response_content += delta["content"]
-                if delta.get("reasoning_content"):
-                    response_think += delta["reasoning_content"]
+                # OpenRouter 流式增量放在 reasoning，DeepSeek 用 reasoning_content
+                delta_reasoning = delta.get("reasoning_content") or delta.get("reasoning")
+                if delta_reasoning:
+                    response_think += delta_reasoning
 
             # 提取 usage 信息（通常在最后一个 chunk）
             usage = chunk.get("usage")
@@ -196,6 +218,30 @@ class OpenaiRequester(LogMixin, Base):
 
         return response_think, response_content, prompt_tokens, completion_tokens
 
+    # 兼容各家推理字段：OpenRouter 放在 reasoning，DeepSeek/部分中转放在 reasoning_content
+    @staticmethod
+    def _extract_reasoning_text(message) -> str:
+        for attr in ("reasoning_content", "reasoning"):
+            value = getattr(message, attr, None)
+            if isinstance(value, str) and value:
+                return value
+
+        # OpenRouter 的结构化推理明细（reasoning.text / reasoning.summary）
+        details = getattr(message, "reasoning_details", None)
+        if isinstance(details, list):
+            parts = []
+            for item in details:
+                if isinstance(item, dict):
+                    text = item.get("text") or item.get("summary")
+                else:
+                    text = getattr(item, "text", None) or getattr(item, "summary", None)
+                if isinstance(text, str) and text:
+                    parts.append(text)
+            if parts:
+                return "".join(parts)
+
+        return ""
+
     # 从响应中提取内容和token消耗
     def _extract_from_completion(self, response: ChatCompletion) -> tuple[str, str, int, int]:
         """
@@ -204,19 +250,17 @@ class OpenaiRequester(LogMixin, Base):
         """
         message = response.choices[0].message
 
+        # 纯推理模型可能只返回 reasoning 而没有 content，这里统一成空串避免后续判断报错
+        content = message.content or ""
+
         # 自适应提取推理过程
-        if "</think>" in message.content:
-            splited = message.content.split("</think>")
+        if "</think>" in content:
+            splited = content.split("</think>")
             response_think = splited[0].removeprefix("<think>").replace("\n\n", "\n")
             response_content = splited[-1]
         else:
-            try:
-                response_think = message.reasoning_content
-                if not response_think:
-                    response_think = ""
-            except Exception:
-                response_think = ""
-            response_content = message.content
+            response_think = self._extract_reasoning_text(message)
+            response_content = content
 
         # 获取token消耗
         try:
