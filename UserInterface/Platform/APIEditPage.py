@@ -1,7 +1,11 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QVBoxLayout
+from PyQt5.QtWidgets import QHBoxLayout
+from PyQt5.QtWidgets import QLineEdit
 
+from qfluentwidgets import CheckBox
+from qfluentwidgets import LineEdit
 from qfluentwidgets import PlainTextEdit
 from qfluentwidgets import MessageBoxBase
 from qfluentwidgets import SingleDirectionScrollArea
@@ -154,15 +158,32 @@ class APIEditPage(MessageBoxBase, ConfigMixin, LogMixin, ToastMixin, Base):
 
         def text_changed(widget):
             config = self.load_config()
-            config["platforms"][self.key]["api_key"] = widget.toPlainText().strip()
+            config["platforms"][self.key]["api_key"] = widget.text().strip()
             self.save_config(config)
 
         def init(widget):
-            plain_text_edit = PlainTextEdit(self)
-            plain_text_edit.setPlainText(config.get("platforms").get(self.key).get("api_key"))
-            plain_text_edit.setPlaceholderText(self.tra("请输入接口密钥"))
-            plain_text_edit.textChanged.connect(lambda: text_changed(plain_text_edit))
-            widget.addWidget(plain_text_edit)
+            # 默认掩码显示：密钥明文回显会被截图、被同步盘、被旁人看到，
+            # 需要核对时用「显示」临时展开。
+            line_edit = LineEdit(self)
+            line_edit.setEchoMode(QLineEdit.Password)
+            line_edit.setText(config.get("platforms").get(self.key).get("api_key") or "")
+            line_edit.setPlaceholderText(self.tra("请输入接口密钥"))
+            line_edit.setClearButtonEnabled(True)
+            line_edit.textChanged.connect(lambda: text_changed(line_edit))
+
+            reveal = CheckBox(self.tra("显示"), self)
+
+            def toggle_echo(checked: bool) -> None:
+                line_edit.setEchoMode(QLineEdit.Normal if checked else QLineEdit.Password)
+
+            reveal.stateChanged.connect(lambda _: toggle_echo(reveal.isChecked()))
+
+            row = QWidget(self)
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.addWidget(line_edit)
+            row_layout.addWidget(reveal)
+            widget.addWidget(row)
 
         parent.addWidget(
             GroupCard(
