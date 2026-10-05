@@ -20,8 +20,21 @@ from UserInterface.Widget.GroupCard import GroupCard
 from UserInterface.Widget.SwitchButtonCard import SwitchButtonCard
 from UserInterface.Widget.ComboBoxCard import ComboBoxCard
 from UserInterface.Widget.SpinCard import SpinCard
+from UserInterface.Widget.Toast import ToastMixin
+from UserInterface.Widget.LineEditCard import LineEditCard
+from UserInterface.Widget.PlainTextEditCard import PlainTextEditCard
+from ModuleFolders.Infrastructure.LLMRequester.OptionSchema import (
+    OptionSchemaError,
+    decode_option_value,
+    encode_option_value,
+    option_widget_plan,
+    resolve_options,
+    resolve_preset_key,
+    validate_descriptor,
+    validate_schema,
+)
 
-class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, Base):
+class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, ToastMixin, Base):
 
     @staticmethod
     def is_volcengine_platform(key: str, platform: dict) -> bool:
@@ -118,6 +131,9 @@ class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, Base):
         api_format = config.get("platforms").get(self.key).get("api_format")
         if "tls_switch" in settings or api_format == "OpenAI":
             self.add_widget_tls_switch(self.vbox, config)
+
+        # 声明式选项（preset 里声明了 options 的平台）
+        self.add_declared_options(self.vbox, config)
 
         # 填充
         self.vbox.addStretch(1)
@@ -269,23 +285,32 @@ class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, Base):
     def add_widget_extra_body(self, parent, config):
 
         def text_changed(widget):
+            # 不再做 text.replace("'", '"')：那会把合法 JSON 里的撇号改坏，
+            # 例如 {"a": "it's ok"} 会直接解析失败。
             try:
-                config = self.load_config()
-
                 extra_body_str = widget.toPlainText().strip()
                 if not extra_body_str:
-                    config["platforms"][self.key]["extra_body"] = {}
+                    extra_body_dict = {}
                 else:
-                    extra_body_dict = json.loads(extra_body_str.replace("'", "\""))
-                    if extra_body_dict is None:
-                        extra_body_dict = {}
-                        
-                    config["platforms"][self.key]["extra_body"] = extra_body_dict
-
-                self.save_config(config)
+                    extra_body_dict = json.loads(extra_body_str)
+                    if not isinstance(extra_body_dict, dict):
+                        raise ValueError("extra_body 顶层必须是 JSON 对象")
             except Exception as e:
-                # 建议添加错误提示，方便调试
-                print(f"[INFO] 接口保存 extra_body 参数失败: {e}")
+                # --windowed 下 print 不可见，必须给可见反馈，并且**不写盘**：
+                # 逐键保存意味着半成品输入会覆盖已经存好的值。
+                if not getattr(widget, "_ainiee_extra_body_invalid", False):
+                    self.warning_toast(
+                        self.tra("自定义请求体"),
+                        self.tra("JSON 格式不正确，已保留上一个有效值"),
+                    )
+                    widget._ainiee_extra_body_invalid = True
+                self.error(f"接口保存 extra_body 参数失败: {e}")
+                return
+
+            widget._ainiee_extra_body_invalid = False
+            config = self.load_config()
+            config["platforms"][self.key]["extra_body"] = extra_body_dict
+            self.save_config(config)
 
         def init(widget):
             plain_text_edit = PlainTextEdit(self)
@@ -335,8 +360,12 @@ class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, Base):
     def add_widget_temperature(self, parent, config, preset):
         def init(widget):
             widget.set_range(0, 200)
-            widget.set_text(f"{config.get("platforms").get(self.key).get("temperature"):.2f}")
-            widget.set_value(int(config.get("platforms").get(self.key).get("temperature") * 100))
+            # 手工改过的 config 可能缺 temperature 或存的不是数字，这里统一兜底，
+            # 否则格式化字符串会直接抛异常，整个设置页打不开。
+            raw = config.get("platforms").get(self.key).get("temperature")
+            temperature = raw if isinstance(raw, (int, float)) and not isinstance(raw, bool) else 1.0
+            widget.set_text(f"{temperature:.2f}")
+            widget.set_value(int(temperature * 100))
 
         def value_changed(widget, value):
             widget.set_text(f"{(value / 100):.2f}")
@@ -345,10 +374,11 @@ class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, Base):
             config["platforms"][self.key]["temperature"] = value / 100
             self.save_config(config)
 
-        if self.key in preset.get("platforms"):
-            default_value = preset.get("platforms").get(self.key).get("temperature")
-        else:
-            default_value = preset.get("platforms").get("openai").get("temperature")
+        # 平台实例 key 带随机后缀，必须回到 preset 的 tag 上取默认值
+        preset_platforms = preset.get("platforms", {})
+        preset_key = resolve_preset_key(config.get("platforms").get(self.key) or {}, preset_platforms)
+        default_platform = preset_platforms.get(preset_key) or preset_platforms.get("openai") or {}
+        default_value = default_platform.get("temperature")
 
         info_cont = self.tra("控制回复随机性，值越高输出越发散；默认值为") + f" {default_value}"
         parent.addWidget(
@@ -359,3 +389,101 @@ class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, Base):
                 value_changed = value_changed,
             )
         )
+
+    # ---- 声明式选项渲染 ----
+    # preset 里声明了 options 的平台由通用渲染器出控件。选项键与 legacy 的
+    # key_in_settings 不重叠（有测试守住），所以两套可以并存；等所有 provider
+    # 迁移完成后，上面的手写分支和 is_volcengine_platform 就可以整段删除。
+    def add_declared_options(self, parent, config):
+        platform = config.get("platforms").get(self.key) or {}
+        preset_platforms = (self.load_file(platform_preset_path()) or {}).get("platforms", {})
+        options = resolve_options(platform, preset_platforms)
+        if not options:
+            return
+
+        # schema 来自可热补丁的 Resource 文件：坏描述符只跳过并提示，
+        # 绝不能让设置页构造失败（那等于用户打不开接口设置）。
+        problems = validate_schema(options)
+        if problems:
+            self.warning_toast(self.tra("接口选项声明有误"), "; ".join(problems[:3]))
+            self.error(f"接口选项声明有误: {problems}")
+
+        for descriptor in options:
+            try:
+                validate_descriptor(descriptor)
+            except OptionSchemaError as error:
+                self.error(f"跳过无效选项声明: {error}")
+                continue
+            self._add_declared_option(parent, config, descriptor)
+
+    def _save_option(self, descriptor, value):
+        config = self.load_config()
+        key = descriptor["key"]
+        if value is None:
+            # 不设置 = 交给服务端默认值，直接删键而不是写 null
+            config["platforms"][self.key].pop(key, None)
+        else:
+            config["platforms"][self.key][key] = value
+        self.save_config(config)
+
+    def _add_declared_option(self, parent, config, descriptor):
+        plan = option_widget_plan(descriptor, ConfigMixin.current_interface_language)
+        current = config.get("platforms").get(self.key).get(descriptor["key"])
+        title, desc = plan["label"], plan["desc"]
+        unset_label = self.tra("（不设置）")
+
+        if plan["widget"] == "switch":
+            def init(widget):
+                widget.set_checked(bool(current))
+
+            def checked_changed(widget, checked: bool):
+                self._save_option(descriptor, bool(checked))
+
+            parent.addWidget(
+                SwitchButtonCard(title, desc, init=init, checked_changed=checked_changed)
+            )
+            return
+
+        if plan["widget"] == "combo":
+            choices = plan["choices"]
+
+            def init(widget):
+                widget.set_items([choice if choice else unset_label for choice in choices])
+                text = "" if current is None else str(current)
+                widget.set_current_index(max(0, widget.find_text(text or unset_label)))
+
+            def current_text_changed(widget, text: str):
+                value = "" if text == unset_label else text
+                self._save_option(descriptor, value or None)
+
+            parent.addWidget(
+                ComboBoxCard(
+                    title, desc, [],
+                    init=init,
+                    current_text_changed=current_text_changed,
+                )
+            )
+            return
+
+        card_class = PlainTextEditCard if plan["widget"] in ("list", "json") else LineEditCard
+
+        def init(widget):
+            widget.set_text(decode_option_value(descriptor, current))
+            if plan["widget"] == "list":
+                widget.set_placeholder_text(self.tra("每行一个，留空表示不设置"))
+            elif plan["widget"] == "json":
+                widget.set_placeholder_text(self.tra("JSON，留空表示不设置"))
+
+        def text_changed(widget, text: str):
+            ok, value = encode_option_value(descriptor, text)
+            if not ok:
+                # 不写盘：半成品输入不能覆盖已经存好的值；只在进入非法状态时提示一次，
+                # 避免逐键保存时每敲一个字符弹一次
+                if not getattr(widget, "_ainiee_option_invalid", False):
+                    self.warning_toast(title, self.tra("格式不正确，已忽略本次输入"))
+                    widget._ainiee_option_invalid = True
+                return
+            widget._ainiee_option_invalid = False
+            self._save_option(descriptor, value)
+
+        parent.addWidget(card_class(title, desc, init=init, text_changed=text_changed))

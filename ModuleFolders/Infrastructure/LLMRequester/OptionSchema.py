@@ -15,6 +15,7 @@ CI 也能在不启动 GUI 的前提下守住这些规则。
 """
 
 import copy
+import json
 import re
 
 # 允许写入的请求体顶层键：数据只能在这些槽位里选，不能自己发明路径。
@@ -306,6 +307,114 @@ def build_option_body(platform_config, preset_platforms) -> dict:
             continue
 
     return result
+
+
+def localized_text(value, language: str = "简中", fallback: str = "") -> str:
+    """取多语言文本。
+
+    选项标签与将来的 provider 文档都自带语言映射（{"简中": ..., "English": ...}），
+    而不是走 tra() —— tra() 的 key 是中文原文，每改一次文档都要同步改 10 个
+    本地化文件，"Resource 单文件热补丁"这个卖点就没了。
+    """
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        text = value.get(language)
+        if isinstance(text, str) and text:
+            return text
+        for candidate in value.values():
+            if isinstance(candidate, str) and candidate:
+                return candidate
+    return fallback
+
+
+# 描述符 type -> 界面控件种类。界面层只做这一层映射，判断逻辑留在这里可测。
+_WIDGET_BY_TYPE = {
+    "bool": "switch",
+    "enum": "combo",
+    "string": "line",
+    "int": "line",
+    "float": "line",
+    "string-list": "list",
+    "json": "json",
+    "number-or-object": "json",
+}
+
+# 组合框里代表「不设置」的哨兵：不设置意味着交给服务端默认值，
+# 没有这个选项用户就无法把值改回默认。
+UNSET_CHOICE = ""
+
+
+def option_widget_plan(descriptor, language: str = "简中") -> dict:
+    """把描述符折算成界面所需的信息（Qt-free，因此可以被单测覆盖）。
+
+    返回 widget 种类、标题、说明与候选项；界面层据此挑控件，不再自己判断类型。
+    """
+    option_type = descriptor.get("type")
+    widget = _WIDGET_BY_TYPE.get(option_type, "line")
+    key = descriptor.get("key", "")
+
+    choices = []
+    if widget == "combo":
+        # 第一项固定是「不设置」
+        choices = [UNSET_CHOICE] + [
+            str(v) for v in descriptor.get("values", []) if str(v) != UNSET_CHOICE
+        ]
+
+    return {
+        "key": key,
+        "widget": widget,
+        "label": localized_text(descriptor.get("label"), language, key),
+        "desc": localized_text(descriptor.get("desc"), language, ""),
+        "choices": choices,
+        "numeric": option_type in ("int", "float"),
+    }
+
+
+def encode_option_value(descriptor, raw_text: str):
+    """把界面上的原始文本转成要存进 config 的值。
+
+    返回 (ok, value)；ok 为 False 时调用方必须提示并且**不要写盘**，
+    不能让半成品输入覆盖已经存好的值。空文本代表「不设置」，返回 (True, None)。
+    """
+    option_type = descriptor.get("type")
+    text = (raw_text or "").strip()
+    if not text:
+        return True, None
+
+    try:
+        if option_type == "string-list":
+            items = [part.strip() for part in text.replace("\n", ",").split(",")]
+            return True, [item for item in items if item]
+        if option_type == "int":
+            return True, int(text)
+        if option_type == "float":
+            value = float(text)
+            # nan/inf 会让 rapidjson 写出的 config 读不回来，
+            # 而 Config.load_config 遇到解析失败会把 config 改名 .corrupt 并清空 ——
+            # 用户的全部平台与密钥会在应用内消失，所以这里必须挡住。
+            if value != value or value in (float("inf"), float("-inf")):
+                return False, None
+            return True, value
+        if option_type in ("json", "number-or-object"):
+            return True, json.loads(text)
+    except (ValueError, TypeError):
+        return False, None
+
+    return True, text
+
+
+def decode_option_value(descriptor, value) -> str:
+    """把 config 里的值转回界面文本。"""
+    if value is None:
+        return ""
+    if descriptor.get("type") == "string-list" and isinstance(value, list):
+        return "\n".join(str(item) for item in value)
+    if descriptor.get("type") in ("json", "number-or-object") and not isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
 
 
 def option_defaults(options) -> dict:

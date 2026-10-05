@@ -6,9 +6,13 @@ from ModuleFolders.Infrastructure.LLMRequester.OptionSchema import (
     OptionSchemaError,
     apply_options_to_params,
     build_option_body,
+    decode_option_value,
+    encode_option_value,
+    localized_text,
     matches_when,
     merge_into,
     option_defaults,
+    option_widget_plan,
     resolve_options,
     resolve_preset_key,
     validate_schema,
@@ -415,6 +419,127 @@ class RealPresetSchemaTests(unittest.TestCase):
         """
         paths = {o["path"] for o in self.preset["platforms"]["openrouter"]["options"]}
         self.assertNotIn("reasoning.effort", paths)
+
+
+class LocalizedTextTests(unittest.TestCase):
+    def test_plain_string_passes_through(self):
+        self.assertEqual(localized_text("Hello", "简中", "fb"), "Hello")
+
+    def test_language_map_picks_the_language(self):
+        value = {"简中": "提供商顺序", "English": "Provider order"}
+        self.assertEqual(localized_text(value, "简中", "fb"), "提供商顺序")
+        self.assertEqual(localized_text(value, "English", "fb"), "Provider order")
+
+    def test_missing_language_falls_back_to_any_translation(self):
+        self.assertEqual(localized_text({"English": "Only"}, "简中", "fb"), "Only")
+
+    def test_unusable_value_returns_the_fallback(self):
+        self.assertEqual(localized_text(None, "简中", "fallback"), "fallback")
+        self.assertEqual(localized_text({}, "简中", "fallback"), "fallback")
+
+
+class OptionWidgetPlanTests(unittest.TestCase):
+    def test_type_maps_to_widget_kind(self):
+        cases = {
+            "bool": "switch", "enum": "combo", "string": "line", "int": "line",
+            "float": "line", "string-list": "list", "json": "json",
+            "number-or-object": "json",
+        }
+        for option_type, expected in cases.items():
+            with self.subTest(option_type=option_type):
+                descriptor = {"key": "k", "type": option_type, "values": ["a"]}
+                self.assertEqual(option_widget_plan(descriptor)["widget"], expected)
+
+    def test_combo_offers_an_unset_choice_first(self):
+        # 没有「不设置」这一项，用户就无法把值改回服务端默认
+        plan = option_widget_plan({"key": "k", "type": "enum", "values": ["a", "b"]})
+        self.assertEqual(plan["choices"], ["", "a", "b"])
+
+    def test_label_falls_back_to_the_key(self):
+        plan = option_widget_plan({"key": "provider_order", "type": "string"})
+        self.assertEqual(plan["label"], "provider_order")
+
+    def test_label_is_localized(self):
+        descriptor = {"key": "k", "type": "string",
+                      "label": {"简中": "提供商顺序", "English": "Provider order"}}
+        self.assertEqual(option_widget_plan(descriptor, "English")["label"], "Provider order")
+
+    def test_numeric_flag_is_set_for_number_types(self):
+        self.assertTrue(option_widget_plan({"key": "k", "type": "int"})["numeric"])
+        self.assertFalse(option_widget_plan({"key": "k", "type": "string"})["numeric"])
+
+
+class EncodeOptionValueTests(unittest.TestCase):
+    def _d(self, option_type, **extra):
+        return dict({"key": "k", "type": option_type}, **extra)
+
+    def test_empty_text_means_unset(self):
+        for option_type in ("string", "int", "string-list", "json"):
+            with self.subTest(option_type=option_type):
+                self.assertEqual(encode_option_value(self._d(option_type), "   "), (True, None))
+
+    def test_string_list_accepts_newlines_and_commas(self):
+        ok, value = encode_option_value(self._d("string-list"), "Anthropic\nGoogle, DeepSeek")
+        self.assertTrue(ok)
+        self.assertEqual(value, ["Anthropic", "Google", "DeepSeek"])
+
+    def test_int_parses(self):
+        self.assertEqual(encode_option_value(self._d("int"), "42"), (True, 42))
+
+    def test_bad_int_is_rejected(self):
+        self.assertEqual(encode_option_value(self._d("int"), "4x2"), (False, None))
+
+    def test_float_parses(self):
+        self.assertEqual(encode_option_value(self._d("float"), "1.5"), (True, 1.5))
+
+    def test_nan_and_infinity_are_rejected(self):
+        """nan/inf 会让 rapidjson 写出的 config 读不回来。
+
+        Config.load_config 解析失败时会把 config 改名 .corrupt 并清空 ——
+        用户的全部平台与密钥会在应用内消失，所以必须在这里挡住。
+        """
+        for text in ("nan", "NaN", "inf", "-inf", "Infinity"):
+            with self.subTest(text=text):
+                ok, _ = encode_option_value(self._d("float"), text)
+                self.assertFalse(ok, f"{text} must not reach the config")
+
+    def test_json_object_parses(self):
+        ok, value = encode_option_value(self._d("json"), '{"a": 1}')
+        self.assertTrue(ok)
+        self.assertEqual(value, {"a": 1})
+
+    def test_malformed_json_is_rejected(self):
+        self.assertEqual(encode_option_value(self._d("json"), "{oops"), (False, None))
+
+    def test_string_is_kept_verbatim_including_apostrophes(self):
+        ok, value = encode_option_value(self._d("string"), "it's ok")
+        self.assertTrue(ok)
+        self.assertEqual(value, "it's ok")
+
+
+class DecodeOptionValueTests(unittest.TestCase):
+    def test_none_is_empty_text(self):
+        self.assertEqual(decode_option_value({"type": "string"}, None), "")
+
+    def test_list_round_trips_as_newlines(self):
+        self.assertEqual(
+            decode_option_value({"type": "string-list"}, ["a", "b"]), "a\nb"
+        )
+
+    def test_object_round_trips_as_json(self):
+        self.assertEqual(
+            decode_option_value({"type": "json"}, {"a": 1}), '{"a": 1}'
+        )
+
+    def test_bool_round_trips(self):
+        self.assertEqual(decode_option_value({"type": "bool"}, True), "true")
+        self.assertEqual(decode_option_value({"type": "bool"}, False), "false")
+
+    def test_round_trip_through_the_ui_helpers(self):
+        descriptor = {"key": "k", "type": "string-list"}
+        ok, value = encode_option_value(descriptor, "a\nb")
+        self.assertTrue(ok)
+        self.assertEqual(decode_option_value(descriptor, value), "a\nb")
 
 
 if __name__ == "__main__":
