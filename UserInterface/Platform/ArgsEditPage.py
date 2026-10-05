@@ -3,6 +3,7 @@ import json
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtCore import QUrl
+from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QVBoxLayout
 
@@ -20,6 +21,7 @@ from UserInterface.Widget.GroupCard import GroupCard
 from UserInterface.Widget.SwitchButtonCard import SwitchButtonCard
 from UserInterface.Widget.ComboBoxCard import ComboBoxCard
 from UserInterface.Widget.SpinCard import SpinCard
+from UserInterface.Widget.PushButtonCard import PushButtonCard
 from UserInterface.Widget.Toast import ToastMixin
 from UserInterface.Widget.LineEditCard import LineEditCard
 from UserInterface.Widget.PlainTextEditCard import PlainTextEditCard
@@ -32,6 +34,12 @@ from ModuleFolders.Infrastructure.LLMRequester.OptionSchema import (
     resolve_preset_key,
     validate_descriptor,
     validate_schema,
+)
+from ModuleFolders.Infrastructure.LLMRequester.ProviderDocs import (
+    doc_links,
+    doc_notes,
+    has_docs,
+    resolve_docs,
 )
 
 class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, ToastMixin, Base):
@@ -131,6 +139,9 @@ class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, ToastMixin, Base):
         api_format = config.get("platforms").get(self.key).get("api_format")
         if "tls_switch" in settings or api_format == "OpenAI":
             self.add_widget_tls_switch(self.vbox, config)
+
+        # 接口文档（preset 里声明了 docs 的平台）
+        self.add_provider_docs(self.vbox, config)
 
         # 声明式选项（preset 里声明了 options 的平台）
         self.add_declared_options(self.vbox, config)
@@ -389,6 +400,51 @@ class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, ToastMixin, Base):
                 value_changed = value_changed,
             )
         )
+
+    # ---- Provider 文档 ----
+    # 文档正文与链接都来自 Resource/platforms/preset.json，所以更新说明只要替换
+    # 一个数据文件，不必重新打包。链接经过 https + host 校验（见 ProviderDocs），
+    # 说明按纯文本渲染，避免可热补丁的数据文件变成注入面。
+    def add_provider_docs(self, parent, config):
+        platform = config.get("platforms").get(self.key) or {}
+        preset_platforms = (self.load_file(platform_preset_path()) or {}).get("platforms", {})
+        docs = resolve_docs(platform, preset_platforms)
+        if not has_docs(docs):
+            return
+
+        language = ConfigMixin.current_interface_language
+        notes = doc_notes(docs, language)
+        links = doc_links(docs, language)
+
+        def init(widget):
+            if notes:
+                view = PlainTextEdit(self)
+                view.setPlainText(notes)
+                view.setReadOnly(True)
+                view.setFixedHeight(96)
+                widget.addWidget(view)
+
+        parent.addWidget(
+            GroupCard(
+                self.tra("接口文档"),
+                self.tra("随程序附带的接口说明，更新 Resource/platforms/preset.json 即可修改"),
+                init=init,
+            )
+        )
+
+        for _field, label, url in links:
+            def open_link(widget, target=url):
+                # url 已在 ProviderDocs 里校验过 scheme 与 host
+                QDesktopServices.openUrl(QUrl(target))
+
+            parent.addWidget(
+                PushButtonCard(
+                    label,
+                    url,
+                    init=lambda widget: widget.set_text(self.tra("打开")),
+                    clicked=open_link,
+                )
+            )
 
     # ---- 声明式选项渲染 ----
     # preset 里声明了 options 的平台由通用渲染器出控件。选项键与 legacy 的
