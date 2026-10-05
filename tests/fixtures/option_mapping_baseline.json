@@ -1,0 +1,2763 @@
+{
+  "_comment": "Characterisation baseline: exact output of OpenaiRequester.apply_platform_thinking_params before the option-mapping refactor. Generated from the implementation at commit 8d5c4dd. Any diff here after a refactor must be deliberate and explained.",
+  "cases": {
+    "custom_482913|think=False|model=gpt-4o": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "",
+        "extra_body": {},
+        "model_name": "gpt-4o",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "custom_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "custom_482913|think=False|model=gpt-4o-mini": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "",
+        "extra_body": {},
+        "model_name": "gpt-4o-mini",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "custom_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "custom_482913|think=True|model=gpt-4o": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "",
+        "extra_body": {},
+        "model_name": "gpt-4o",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "custom_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "custom_482913|think=True|model=gpt-4o-mini": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "",
+        "extra_body": {},
+        "model_name": "gpt-4o-mini",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "custom_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "custom|think=False|model=gpt-4o": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "",
+        "extra_body": {},
+        "model_name": "gpt-4o",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "custom",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "custom|think=False|model=gpt-4o-mini": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "",
+        "extra_body": {},
+        "model_name": "gpt-4o-mini",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "custom",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "custom|think=True|model=gpt-4o": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "",
+        "extra_body": {},
+        "model_name": "gpt-4o",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "custom",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "custom|think=True|model=gpt-4o-mini": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "",
+        "extra_body": {},
+        "model_name": "gpt-4o-mini",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "custom",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-4o-mini",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "dashscope_482913|think=False|model=qwen3.7-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "extra_body": {},
+        "model_name": "qwen3.7-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "dashscope_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "enable_thinking": false
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "dashscope_482913|think=False|model=qwen3.7-plus": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-plus",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "extra_body": {},
+        "model_name": "qwen3.7-plus",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "dashscope_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "enable_thinking": false
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-plus",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "dashscope_482913|think=True|model=qwen3.7-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "extra_body": {},
+        "model_name": "qwen3.7-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "dashscope_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "enable_thinking": true
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "dashscope_482913|think=True|model=qwen3.7-plus": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-plus",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "extra_body": {},
+        "model_name": "qwen3.7-plus",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "dashscope_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "enable_thinking": true
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-plus",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "dashscope|think=False|model=qwen3.7-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "extra_body": {},
+        "model_name": "qwen3.7-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "dashscope",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "enable_thinking": false
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "dashscope|think=False|model=qwen3.7-plus": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-plus",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "extra_body": {},
+        "model_name": "qwen3.7-plus",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "dashscope",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "enable_thinking": false
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-plus",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "dashscope|think=True|model=qwen3.7-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "extra_body": {},
+        "model_name": "qwen3.7-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "dashscope",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "enable_thinking": true
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "dashscope|think=True|model=qwen3.7-plus": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-plus",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "extra_body": {},
+        "model_name": "qwen3.7-plus",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "dashscope",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "enable_thinking": true
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "qwen3.7-plus",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "deepseek_482913|think=False|model=deepseek-v4-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.deepseek.com/v1",
+        "extra_body": {},
+        "model_name": "deepseek-v4-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "deepseek_482913",
+        "temperature": 1.3,
+        "think_depth": "high",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "deepseek_482913|think=False|model=deepseek-v4-pro": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-pro",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.deepseek.com/v1",
+        "extra_body": {},
+        "model_name": "deepseek-v4-pro",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "deepseek_482913",
+        "temperature": 1.3,
+        "think_depth": "high",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-pro",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "deepseek_482913|think=True|model=deepseek-v4-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.deepseek.com/v1",
+        "extra_body": {},
+        "model_name": "deepseek-v4-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "deepseek_482913",
+        "temperature": 1.3,
+        "think_depth": "high",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "reasoning_effort": "high",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "deepseek_482913|think=True|model=deepseek-v4-pro": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-pro",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.deepseek.com/v1",
+        "extra_body": {},
+        "model_name": "deepseek-v4-pro",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "deepseek_482913",
+        "temperature": 1.3,
+        "think_depth": "high",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-pro",
+        "reasoning_effort": "high",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "deepseek|think=False|model=deepseek-v4-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.deepseek.com/v1",
+        "extra_body": {},
+        "model_name": "deepseek-v4-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "deepseek",
+        "temperature": 1.3,
+        "think_depth": "high",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "deepseek|think=False|model=deepseek-v4-pro": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-pro",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.deepseek.com/v1",
+        "extra_body": {},
+        "model_name": "deepseek-v4-pro",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "deepseek",
+        "temperature": 1.3,
+        "think_depth": "high",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-pro",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "deepseek|think=True|model=deepseek-v4-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.deepseek.com/v1",
+        "extra_body": {},
+        "model_name": "deepseek-v4-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "deepseek",
+        "temperature": 1.3,
+        "think_depth": "high",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "reasoning_effort": "high",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "deepseek|think=True|model=deepseek-v4-pro": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-pro",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.deepseek.com/v1",
+        "extra_body": {},
+        "model_name": "deepseek-v4-pro",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "deepseek",
+        "temperature": 1.3,
+        "think_depth": "high",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-pro",
+        "reasoning_effort": "high",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openai_482913|think=False|model=gpt-5.6-luna": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-luna",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.openai.com/v1",
+        "extra_body": {},
+        "model_name": "gpt-5.6-luna",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openai_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-luna",
+        "reasoning_effort": "none",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openai_482913|think=False|model=gpt-5.6-terra": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-terra",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.openai.com/v1",
+        "extra_body": {},
+        "model_name": "gpt-5.6-terra",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openai_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-terra",
+        "reasoning_effort": "none",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openai_482913|think=True|model=gpt-5.6-luna": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-luna",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.openai.com/v1",
+        "extra_body": {},
+        "model_name": "gpt-5.6-luna",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openai_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-luna",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openai_482913|think=True|model=gpt-5.6-terra": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-terra",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.openai.com/v1",
+        "extra_body": {},
+        "model_name": "gpt-5.6-terra",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openai_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-terra",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openai|think=False|model=gpt-5.6-luna": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-luna",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.openai.com/v1",
+        "extra_body": {},
+        "model_name": "gpt-5.6-luna",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openai",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-luna",
+        "reasoning_effort": "none",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openai|think=False|model=gpt-5.6-terra": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-terra",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.openai.com/v1",
+        "extra_body": {},
+        "model_name": "gpt-5.6-terra",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openai",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-terra",
+        "reasoning_effort": "none",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openai|think=True|model=gpt-5.6-luna": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-luna",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.openai.com/v1",
+        "extra_body": {},
+        "model_name": "gpt-5.6-luna",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openai",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-luna",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openai|think=True|model=gpt-5.6-terra": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-terra",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.openai.com/v1",
+        "extra_body": {},
+        "model_name": "gpt-5.6-terra",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openai",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "gpt-5.6-terra",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openrouter_482913|think=False|model=anthropic/claude-sonnet-5.5": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "anthropic/claude-sonnet-5.5",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://openrouter.ai/api/v1",
+        "extra_body": {},
+        "model_name": "anthropic/claude-sonnet-5.5",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openrouter_482913",
+        "temperature": 1.0,
+        "think_depth": "medium",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "reasoning": {
+            "effort": "none"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "anthropic/claude-sonnet-5.5",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openrouter_482913|think=False|model=google/gemini-3.8-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "google/gemini-3.8-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://openrouter.ai/api/v1",
+        "extra_body": {},
+        "model_name": "google/gemini-3.8-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openrouter_482913",
+        "temperature": 1.0,
+        "think_depth": "medium",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "reasoning": {
+            "effort": "none"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "google/gemini-3.8-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openrouter_482913|think=True|model=anthropic/claude-sonnet-5.5": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "anthropic/claude-sonnet-5.5",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://openrouter.ai/api/v1",
+        "extra_body": {},
+        "model_name": "anthropic/claude-sonnet-5.5",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openrouter_482913",
+        "temperature": 1.0,
+        "think_depth": "medium",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "reasoning": {
+            "effort": "medium"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "anthropic/claude-sonnet-5.5",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openrouter_482913|think=True|model=google/gemini-3.8-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "google/gemini-3.8-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://openrouter.ai/api/v1",
+        "extra_body": {},
+        "model_name": "google/gemini-3.8-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openrouter_482913",
+        "temperature": 1.0,
+        "think_depth": "medium",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "reasoning": {
+            "effort": "medium"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "google/gemini-3.8-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openrouter|think=False|model=anthropic/claude-sonnet-5.5": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "anthropic/claude-sonnet-5.5",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://openrouter.ai/api/v1",
+        "extra_body": {},
+        "model_name": "anthropic/claude-sonnet-5.5",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openrouter",
+        "temperature": 1.0,
+        "think_depth": "medium",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "reasoning": {
+            "effort": "none"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "anthropic/claude-sonnet-5.5",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openrouter|think=False|model=google/gemini-3.8-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "google/gemini-3.8-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://openrouter.ai/api/v1",
+        "extra_body": {},
+        "model_name": "google/gemini-3.8-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openrouter",
+        "temperature": 1.0,
+        "think_depth": "medium",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "reasoning": {
+            "effort": "none"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "google/gemini-3.8-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openrouter|think=True|model=anthropic/claude-sonnet-5.5": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "anthropic/claude-sonnet-5.5",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://openrouter.ai/api/v1",
+        "extra_body": {},
+        "model_name": "anthropic/claude-sonnet-5.5",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openrouter",
+        "temperature": 1.0,
+        "think_depth": "medium",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "reasoning": {
+            "effort": "medium"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "anthropic/claude-sonnet-5.5",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "openrouter|think=True|model=google/gemini-3.8-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "google/gemini-3.8-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://openrouter.ai/api/v1",
+        "extra_body": {},
+        "model_name": "google/gemini-3.8-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "openrouter",
+        "temperature": 1.0,
+        "think_depth": "medium",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "reasoning": {
+            "effort": "medium"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "google/gemini-3.8-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "volcengine_482913|think=False|model=doubao-seed-2-1-pro-260628": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-pro-260628",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "extra_body": {},
+        "model_name": "doubao-seed-2-1-pro-260628",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "volcengine_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-pro-260628",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "volcengine_482913|think=False|model=doubao-seed-2-1-turbo-260628": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-turbo-260628",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "extra_body": {},
+        "model_name": "doubao-seed-2-1-turbo-260628",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "volcengine_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-turbo-260628",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "volcengine_482913|think=True|model=doubao-seed-2-1-pro-260628": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-pro-260628",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "extra_body": {},
+        "model_name": "doubao-seed-2-1-pro-260628",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "volcengine_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-pro-260628",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "volcengine_482913|think=True|model=doubao-seed-2-1-turbo-260628": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-turbo-260628",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "extra_body": {},
+        "model_name": "doubao-seed-2-1-turbo-260628",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "volcengine_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-turbo-260628",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "volcengine|think=False|model=doubao-seed-2-1-pro-260628": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-pro-260628",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "extra_body": {},
+        "model_name": "doubao-seed-2-1-pro-260628",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "volcengine",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-pro-260628",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "volcengine|think=False|model=doubao-seed-2-1-turbo-260628": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-turbo-260628",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "extra_body": {},
+        "model_name": "doubao-seed-2-1-turbo-260628",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "volcengine",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-turbo-260628",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "volcengine|think=True|model=doubao-seed-2-1-pro-260628": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-pro-260628",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "extra_body": {},
+        "model_name": "doubao-seed-2-1-pro-260628",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "volcengine",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-pro-260628",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "volcengine|think=True|model=doubao-seed-2-1-turbo-260628": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-turbo-260628",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "extra_body": {},
+        "model_name": "doubao-seed-2-1-turbo-260628",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "volcengine",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "doubao-seed-2-1-turbo-260628",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "xai_482913|think=False|model=grok-4.6": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "grok-4.6",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.x.ai/v1",
+        "extra_body": {},
+        "model_name": "grok-4.6",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "xai_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "grok-4.6",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "xai_482913|think=True|model=grok-4.6": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "grok-4.6",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.x.ai/v1",
+        "extra_body": {},
+        "model_name": "grok-4.6",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "xai_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "grok-4.6",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "xai|think=False|model=grok-4.6": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "grok-4.6",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.x.ai/v1",
+        "extra_body": {},
+        "model_name": "grok-4.6",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "xai",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "grok-4.6",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "xai|think=True|model=grok-4.6": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "grok-4.6",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://api.x.ai/v1",
+        "extra_body": {},
+        "model_name": "grok-4.6",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "xai",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {},
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "grok-4.6",
+        "reasoning_effort": "low",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "zhipu_482913|think=False|model=glm-4.7-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://open.bigmodel.cn/api/paas/v4",
+        "extra_body": {},
+        "model_name": "glm-4.7-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "zhipu_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "zhipu_482913|think=False|model=glm-4.7-flashx": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flashx",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://open.bigmodel.cn/api/paas/v4",
+        "extra_body": {},
+        "model_name": "glm-4.7-flashx",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "zhipu_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flashx",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "zhipu_482913|think=True|model=glm-4.7-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://open.bigmodel.cn/api/paas/v4",
+        "extra_body": {},
+        "model_name": "glm-4.7-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "zhipu_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "zhipu_482913|think=True|model=glm-4.7-flashx": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flashx",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://open.bigmodel.cn/api/paas/v4",
+        "extra_body": {},
+        "model_name": "glm-4.7-flashx",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "zhipu_482913",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flashx",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "zhipu|think=False|model=glm-4.7-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://open.bigmodel.cn/api/paas/v4",
+        "extra_body": {},
+        "model_name": "glm-4.7-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "zhipu",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "zhipu|think=False|model=glm-4.7-flashx": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flashx",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://open.bigmodel.cn/api/paas/v4",
+        "extra_body": {},
+        "model_name": "glm-4.7-flashx",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "zhipu",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": false,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flashx",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "zhipu|think=True|model=glm-4.7-flash": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flash",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://open.bigmodel.cn/api/paas/v4",
+        "extra_body": {},
+        "model_name": "glm-4.7-flash",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "zhipu",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flash",
+        "stream": false,
+        "timeout": 60
+      }
+    },
+    "zhipu|think=True|model=glm-4.7-flashx": {
+      "base": {
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flashx",
+        "stream": false,
+        "timeout": 60
+      },
+      "config": {
+        "access_key": "",
+        "api_format": "OpenAI",
+        "api_key": "test-key",
+        "api_url": "https://open.bigmodel.cn/api/paas/v4",
+        "extra_body": {},
+        "model_name": "glm-4.7-flashx",
+        "region": "",
+        "request_timeout": 60,
+        "secret_key": "",
+        "target_platform": "zhipu",
+        "temperature": 1.0,
+        "think_depth": "low",
+        "think_switch": true,
+        "thinking_budget": -1,
+        "thinking_level": "high",
+        "tls_switch": false
+      },
+      "expected": {
+        "extra_body": {
+          "thinking": {
+            "type": "enabled"
+          }
+        },
+        "messages": [
+          {
+            "content": "hello",
+            "role": "user"
+          }
+        ],
+        "model": "glm-4.7-flashx",
+        "stream": false,
+        "timeout": 60
+      }
+    }
+  },
+  "platforms": [
+    "openai",
+    "deepseek",
+    "xai",
+    "volcengine",
+    "dashscope",
+    "zhipu",
+    "openrouter",
+    "custom"
+  ]
+}
