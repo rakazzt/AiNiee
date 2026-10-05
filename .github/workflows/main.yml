@@ -10,6 +10,14 @@ on:
 permissions:
   contents: write
 
+# 同一分支同时只允许一个发布流程在跑。release job 会先删掉 tag=Beta 的 release
+# 再重建，两个 run 并行时会互相把对方正在上传资源的 release 删掉，上传报 404
+# （已经真实发生过一次：一个 run 的清理步骤删掉了另一个 run 的目标 release）。
+# cancel-in-progress 保持 false：排队等待，而不是把正在跑的构建取消掉。
+concurrency:
+  group: ainiee-beta-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: windows-latest
