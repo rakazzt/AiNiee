@@ -22,6 +22,22 @@
                 "model",
                 "rpm_limit",
                 "temperature"
+            ],
+            "options": [
+                {
+                    "key": "max_tokens",
+                    "type": "int",
+                    "vehicle": "param",
+                    "path": "max_tokens",
+                    "label": {
+                        "简中": "最大生成长度",
+                        "English": "Max output tokens"
+                    },
+                    "desc": {
+                        "简中": "单次回复的 token 上限；长行被截断时调大它（留空则回落 512）",
+                        "English": "Per-response token cap; raise it when long lines get truncated (empty falls back to 512)"
+                    }
+                }
             ]
         },
         "LocalLLM": {

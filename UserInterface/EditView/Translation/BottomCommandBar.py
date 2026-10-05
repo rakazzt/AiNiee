@@ -143,7 +143,13 @@ class BottomCommandBar(ConfigMixin, LogMixin, ToastMixin, Base, CardWidget):
 
         self.start_btn.setEnabled(True)
         self.update_task_action_button(None)
-        Base.work_status = Base.STATUS.IDLE
+        # 只在确实处于停止态时才复位为 IDLE。TASK_STOP_DONE 可能来不止一次：
+        # 目标线程的启动守卫会补发一次，task_stop 的 watcher 之后还会再发一次；
+        # 异常路径与 watcher 也会各发一次。若第二次在用户已点"开始"之后到达，
+        # 无条件复位会把运行中新任务的状态改回 IDLE，绕过 task_start 的空闲守卫，
+        # 造成两个主任务并发写同一份缓存（正是该守卫注释里要防的场景）。
+        if Base.work_status in (Base.STATUS.STOPING, Base.STATUS.TASKSTOPPED):
+            Base.work_status = Base.STATUS.IDLE
         self._update_reset_button_state()
         self.emit(Base.EVENT.TASK_CONTINUE_CHECK, {})
 

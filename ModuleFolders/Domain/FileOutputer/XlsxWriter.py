@@ -51,8 +51,10 @@ class XlsxWriter(BaseTranslatedWriter):
                 cell = ws.cell(row=row_index, column=col_index)
 
                 # 只替换字符串单元格：数值/日期/公式单元格保持原值与类型，
-                # 避免"数字存成文本"与公式被译文覆盖
-                if not isinstance(cell.value, str):
+                # 避免"数字存成文本"与公式被译文覆盖。
+                # 注意：公式格经load_workbook读出来是 data_type=='f'，但 value 依然是 str，
+                # 只看 isinstance(cell.value, str) 会漏判，把用户自己的公式覆盖成文本。
+                if cell.data_type == "f" or not isinstance(cell.value, str):
                     continue
 
                 # 过滤非法控制字符（openpyxl会直接抛错），直接赋值由openpyxl负责XML转义，
@@ -60,6 +62,11 @@ class XlsxWriter(BaseTranslatedWriter):
                 filtered_text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", new_text)
                 try:
                     cell.value = filtered_text
+                    # 译文以"="开头时openpyxl会当公式存（data_type变为'f'），用户打开输出文件
+                    # 就会执行 =WEBSERVICE()/=cmd|... 之类外联或命令（CWE-1236 公式注入）。
+                    # 旧实现在赋值前加一个前导空格来规避；这里改为把类型改回 's'，文本逐字保留。
+                    if cell.data_type == "f":
+                        cell.data_type = "s"
                 except Exception as cell_error:
                     print(f"Error writing cell ({row_index},{col_index}): {cell_error}")
 

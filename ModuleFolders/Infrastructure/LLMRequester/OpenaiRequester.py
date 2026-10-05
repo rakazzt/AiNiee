@@ -68,7 +68,10 @@ class OpenaiRequester(LogMixin, Base):
 
         # 流式回复被max_tokens截断：抛错让上层按失败重试，不能把半截译文当成功返回
         if finish_reason == "length":
-            raise RuntimeError("Response truncated by max_tokens (finish_reason=length, SSE)")
+            raise RuntimeError(
+                "Response truncated by max_tokens (finish_reason=length, SSE)；"
+                "可在该平台设置里调大「最大生成长度」，或改用上限更高的模型"
+            )
 
         return response_think, response_content, prompt_tokens, completion_tokens
 
@@ -109,7 +112,8 @@ class OpenaiRequester(LogMixin, Base):
         finish_reason = getattr(response.choices[0], "finish_reason", None)
         if finish_reason == "length":
             raise RuntimeError(
-                f"Response truncated by max_tokens (finish_reason=length), model {getattr(response, 'model', '?')}"
+                f"Response truncated by max_tokens (finish_reason=length), model {getattr(response, 'model', '?')}；"
+                "可在该平台设置里调大「最大生成长度」，或改用上限更高的模型"
             )
 
         # 纯推理模型可能只返回 reasoning 而没有 content，这里统一成空串避免后续判断报错

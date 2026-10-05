@@ -46,9 +46,14 @@ class SakuraRequester(LogMixin, Base):
 
             # 提取回复的文本内容
             response_content = response.choices[0].message.content
-            # 截断告警：finish_reason=length时内容必然不完整，记日志便于发现配置不足
+            # finish_reason=length 说明回复被max_tokens截断，半句译文写进输出比请求失败更糟：
+            # 这里与其余5个请求器统一成抛错（由下面的 except 兜住按失败返回），
+            # 而不是只记一条 warning 然后把截断内容当成功返回。
+            # 用户可在该平台的「最大生成长度」选项里调大上限（未设置时回落 512）。
             if getattr(response.choices[0], "finish_reason", None) == "length":
-                self.warning(f"Sakura回复被max_tokens={max_tokens}截断，建议调大该平台max_tokens配置")
+                raise RuntimeError(
+                    f"Sakura回复被max_tokens={max_tokens}截断，请在平台设置里调大「最大生成长度」"
+                )
         except Exception as e:
             if Base.work_status == Base.STATUS.STOPING:
                 return True, None, None, None, None
