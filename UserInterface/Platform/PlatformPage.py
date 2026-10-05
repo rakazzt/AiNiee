@@ -562,6 +562,9 @@ class PlatformPage(QFrame, ConfigMixin, ToastMixin, Base):
 
         tag = f"{platform_tag}_{random.randint(100000, 999999)}"
         new_platform["tag"] = tag
+        # 显式记录来源 preset：tag 会被改名，且 deepcopy 固化的是创建那一刻的 schema，
+        # 所以渲染时必须靠这个键回 Resource 取最新的 options / docs。
+        new_platform["preset_key"] = platform_tag
         new_platform["group"] = preset.get("group", "custom")
         new_platform["name"] = data.get("name")
         new_platform["model"] = data.get("model")
