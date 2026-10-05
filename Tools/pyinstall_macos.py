@@ -10,6 +10,8 @@ from pathlib import Path
 
 import PyInstaller.__main__
 
+from build_guard import assert_no_user_config
+
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_NAME = "AiNiee"
@@ -176,6 +178,8 @@ def main() -> None:
 
     os.chdir(ROOT)
     sys.path.insert(0, str(ROOT))
+    # 开发机跑过源码版会留下 Resource/config.json（含全部密钥），必须先挡下来。
+    assert_no_user_config(ROOT / "Resource")
     icon_path = build_icns()
     PyInstaller.__main__.run(pyinstaller_command(icon_path, args.target_arch))
     patch_info_plist()

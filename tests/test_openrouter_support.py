@@ -63,6 +63,30 @@ class OpenRouterReasoningParamTests(unittest.TestCase):
         self.assertEqual(params["reasoning_effort"], "high")
         self.assertNotIn("reasoning", params.get("extra_body", {}))
 
+    def test_provider_routing_survives_untouched(self):
+        # provider 路由不是专门功能，只能靠 extra_body 透传，这里锁定它不被思考参数逻辑破坏
+        routing = {
+            "order": ["Anthropic", "Google"],
+            "allow_fallbacks": False,
+            "data_collection": "deny",
+            "zdr": True,
+            "sort": "throughput",
+        }
+        params = self._params(True, "high", extra_body={"provider": routing})
+        self.assertEqual(params["extra_body"]["provider"], routing)
+        self.assertEqual(params["extra_body"]["reasoning"], {"effort": "high"})
+
+    def test_model_fallback_list_survives(self):
+        params = self._params(
+            True,
+            "medium",
+            extra_body={"models": ["anthropic/claude-sonnet-5.5", "google/gemini-3.8-flash"]},
+        )
+        self.assertEqual(
+            params["extra_body"]["models"],
+            ["anthropic/claude-sonnet-5.5", "google/gemini-3.8-flash"],
+        )
+
 
 class OpenRouterReasoningExtractionTests(unittest.TestCase):
     """OpenRouter 把推理放在 reasoning 字段，DeepSeek 放在 reasoning_content。"""

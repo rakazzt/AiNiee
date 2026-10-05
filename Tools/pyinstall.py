@@ -4,6 +4,8 @@ import sys
 import glob
 import PyInstaller.__main__
 
+from build_guard import assert_no_user_config
+
 cmd = [
     "./AiNiee.py",
     "--icon=./Resource/Logo/Avatar.png",  # FILE.ico: apply the icon to a Windows executable.
@@ -89,6 +91,11 @@ try:
 except Exception:
     print("[WARNING] mediapipe not installed; packaged AutoType language "
           "detection will fall back / fail")
+
+# 开发机上跑过源码版应用就会留下 Resource/config.json（含全部 API key 与 AWS 密钥），
+# 而下面的 --add-data 会整目录打进发布包，RuntimeSetup 还会把它 seed 成新用户默认配置。
+# .gitignore 只挡得住 CI，挡不住本地构建，所以在调用 PyInstaller 之前硬失败。
+assert_no_user_config(ROOT / "Resource")
 
 sys.path.insert(0, ROOT)
 _exclude_opencc_binaries_from_upx()

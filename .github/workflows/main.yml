@@ -38,6 +38,13 @@ jobs:
           python -m pip install --no-deps -r requirements_no_deps.txt
           python -m pip cache purge
 
+      - name: Run unit tests
+        # 测试失败会让 build job 变红，而 release job needs build，因此不会发布半成品。
+        # tests/ 不是包，靠 PYTHONPATH 让用例能 import ModuleFolders 等模块。
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python -m unittest discover -s tests -v
+
       - name: Build EXE with PyInstaller (--onedir mode)
         # 将原 Build EXE 步骤重命名，更清晰
         run: python .\Tools\pyinstall.py
