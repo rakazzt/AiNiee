@@ -1,4 +1,6 @@
 """Regression cases for upstream PR #1093's response-prefix fix."""
+import contextlib
+import io
 import unittest
 
 from ModuleFolders.Domain.ResponseChecker.BaseChecks import check_dict_order
@@ -22,7 +24,11 @@ class ResponsePrefixRegressionTests(unittest.TestCase):
         )
 
     def test_extraction_error_has_dict_contract(self):
-        self.assertEqual(self.extractor.text_extraction({"0": "source"}, None), {})
+        # 这条会走到 ResponseExtractor 的异常分支，那里会 print 中文告警。
+        # 测试不能依赖控制台编码（CI 的 Windows runner 是 cp1252，直接打会
+        # UnicodeEncodeError），所以把 stdout 重定向掉。
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(self.extractor.text_extraction({"0": "source"}, None), {})
 
     def test_order_accepts_quoted_prefix_but_rejects_nonstring(self):
         source = {"0": "first", "1": "second"}

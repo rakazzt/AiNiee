@@ -49,8 +49,11 @@ jobs:
       - name: Run unit tests
         # 测试失败会让 build job 变红，而 release job needs build，因此不会发布半成品。
         # tests/ 不是包，靠 PYTHONPATH 让用例能 import ModuleFolders 等模块。
+        # 应用是中文优先的，异常分支会 print 中文；runner 的管道默认是 cp1252，
+        # 不设 UTF-8 就会 UnicodeEncodeError 把测试挂掉（已真实发生过一次）。
         env:
           PYTHONPATH: ${{ github.workspace }}
+          PYTHONIOENCODING: utf-8
         run: python -m unittest discover -s tests -v
 
       - name: Build EXE with PyInstaller (--onedir mode)
