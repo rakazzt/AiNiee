@@ -146,6 +146,9 @@ jobs:
 
   release:
     name: Publish Beta Release
+    # 只有 main 上的构建才发布：手动在特性分支上触发 workflow 时应当只构建与跑测试，
+    # 否则一个未合并分支会把 tag=Beta 的正式产物覆盖掉。
+    if: github.ref == 'refs/heads/main'
     needs:
       - build
       - build-macos
