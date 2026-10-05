@@ -80,6 +80,7 @@
         },
         "openai": {
             "tag": "openai",
+            "profile": "openai",
             "docs": {"api_key_url": "https://platform.openai.com/api-keys", "docs_url": "https://platform.openai.com/docs", "notes": {"简中": "官方接口，需自备 Key 与额度。", "English": "Official API; bring your own key and quota."}},
             "group": "online",
             "name": "OpenAI",
@@ -109,6 +110,7 @@
         },
         "deepseek": {
             "tag": "deepseek",
+            "profile": "deepseek",
             "docs": {"api_key_url": "https://platform.deepseek.com/api_keys", "docs_url": "https://api-docs.deepseek.com", "notes": {"简中": "价格低、支持思考模式；关闭思考可省 token。", "English": "Cheap and supports thinking; turning thinking off saves tokens."}},
             "group": "online",
             "name": "DeepSeek",
@@ -205,6 +207,7 @@
         },
         "xai": {
             "tag": "xai",
+            "profile": "xai",
             "docs": {"api_key_url": "https://console.x.ai", "docs_url": "https://docs.x.ai", "notes": {"简中": "Grok 系列的思考无法关闭，始终按思考强度计费。", "English": "Grok reasoning cannot be disabled and is always billed by effort."}},
             "group": "online",
             "name": "xAI",
@@ -231,6 +234,7 @@
         },
         "volcengine": {
             "tag": "volcengine",
+            "profile": "volcengine",
             "docs": {"api_key_url": "https://console.volcengine.com/ark", "docs_url": "https://www.volcengine.com/docs/82379", "notes": {"简中": "豆包与 DeepSeek 托管版；思考参数走 thinking 字段。", "English": "Doubao and hosted DeepSeek; thinking is configured via the thinking field."}},
             "group": "online",
             "name": "火山引擎",
@@ -262,6 +266,7 @@
         },
         "dashscope": {
             "tag": "dashscope",
+            "profile": "dashscope",
             "docs": {"api_key_url": "https://bailian.console.aliyun.com", "docs_url": "https://help.aliyun.com/zh/model-studio", "notes": {"简中": "通义千问系列，兼容模式接口。", "English": "Qwen models via the OpenAI-compatible endpoint."}},
             "group": "online",
             "name": "阿里云百炼",
@@ -290,6 +295,7 @@
         },
         "zhipu": {
             "tag": "zhipu",
+            "profile": "zhipu",
             "docs": {"api_key_url": "https://open.bigmodel.cn/usercenter/apikeys", "docs_url": "https://open.bigmodel.cn/dev/api", "notes": {"简中": "GLM 系列，限速较低，注意 RPM 设置。", "English": "GLM models; rate limits are low, so watch the RPM setting."}},
             "group": "online",
             "name": "智谱清言",
@@ -321,6 +327,7 @@
         },
         "openrouter": {
             "tag": "openrouter",
+            "profile": "openrouter",
             "docs": {"api_key_url": "https://openrouter.ai/settings/keys", "docs_url": "https://openrouter.ai/docs", "models_url": "https://openrouter.ai/models", "notes": {"简中": "一个 Key 聚合数百个模型。提供商路由、回退与价格上限可在下方选项中设置。", "English": "One key across hundreds of models. Provider routing, fallbacks and price caps are configurable in the options below."}},
             "group": "online",
             "name": "OpenRouter",
@@ -377,6 +384,7 @@
         },
         "custom": {
             "tag": "custom",
+            "profile": "default",
             "group": "custom",
             "name": "自定义接口",
             "api_url": "",

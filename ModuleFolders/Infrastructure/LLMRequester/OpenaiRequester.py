@@ -1,6 +1,7 @@
 from ModuleFolders.Base.Base import Base
 from ModuleFolders.Log.Log import LogMixin
 from ModuleFolders.Infrastructure.LLMRequester.LLMClientFactory import LLMClientFactory
+from ModuleFolders.Infrastructure.LLMRequester.ThinkingProfiles import build_thinking_params
 
 import copy
 import json
@@ -12,166 +13,12 @@ class OpenaiRequester(LogMixin, Base):
     def __init__(self) -> None:
         pass
 
-    # 识别火山方舟接口，并映射该平台的思考参数；非火山接口返回 None
-    def _apply_volcengine_thinking_params(
-        self,
-        base_params: dict,
-        platform_config: dict,
-    ) -> dict | None:
-        target_platform = str(
-            platform_config.get("target_platform") or platform_config.get("tag") or ""
-        ).lower()
-        api_url = str(platform_config.get("api_url") or "").lower()
-        is_volcengine = (
-            target_platform.startswith("volcengine")
-            or "volces.com" in api_url
-            or "volcengine" in api_url
-        )
-        if not is_volcengine:
-            return None
-
-        params = copy.deepcopy(base_params)
-        raw_extra_body = params.get("extra_body", {})
-        extra_body = (
-            copy.deepcopy(raw_extra_body)
-            if isinstance(raw_extra_body, dict)
-            else {}
-        )
-        params["extra_body"] = extra_body
-
-        think_switch = bool(platform_config.get("think_switch"))
-        think_depth = platform_config.get("think_depth") or "medium"
-        valid_efforts = {"low", "medium", "high", "xhigh", "max"}
-        reasoning_effort = think_depth if think_depth in valid_efforts else "medium"
-
-        raw_thinking = extra_body.get("thinking", {})
-        thinking = copy.deepcopy(raw_thinking) if isinstance(raw_thinking, dict) else {}
-        thinking["type"] = "enabled" if think_switch else "disabled"
-        extra_body["thinking"] = thinking
-
-        # 清理自定义请求体或调用方遗留的同名字段，避免与界面设置冲突。
-        params.pop("reasoning_effort", None)
-        extra_body.pop("reasoning_effort", None)
-        if think_switch:
-            params["reasoning_effort"] = reasoning_effort
-
-        return params
-
-    # 根据 OpenAI 兼容平台的差异，按需添加各自支持的思考参数
+    # 思考参数装配已迁到 ThinkingProfiles 的 profile 注册表（Qt-free，可被单测覆盖）。
+    # 这里保留同名入口，调用方与表征基线都不受影响；原先散落的 is_openai / is_deepseek
+    # / is_xai / is_zhipu / is_dashscope / is_openrouter 字符串嗅探已收敛到
+    # resolve_profile_name 一处，且只在存量配置没有声明 profile 时兜底。
     def apply_platform_thinking_params(self, base_params: dict, platform_config: dict) -> dict:
-        volcengine_params = self._apply_volcengine_thinking_params(base_params, platform_config)
-        if volcengine_params is not None:
-            return volcengine_params
-
-        params = copy.deepcopy(base_params)
-
-        target_platform = str(platform_config.get("target_platform") or "").lower()
-        api_url = str(platform_config.get("api_url") or "").lower()
-        model_name = str(platform_config.get("model_name") or params.get("model") or "")
-        model_name_lower = model_name.lower()
-        think_depth = platform_config.get("think_depth") or "medium"
-
-        # extra_body 中可能已有用户自定义参数，这里复制后再合并平台专用字段
-        raw_extra_body = params.get("extra_body", {})
-        extra_body = copy.deepcopy(raw_extra_body) if isinstance(raw_extra_body, dict) else {}
-        params["extra_body"] = extra_body
-
-        is_openai = target_platform.startswith("openai") or "api.openai.com" in api_url
-        is_deepseek = target_platform.startswith("deepseek") or "api.deepseek.com" in api_url
-        is_xai = target_platform.startswith("xai") or "api.x.ai" in api_url
-        is_zhipu = target_platform.startswith("zhipu") or "bigmodel.cn" in api_url
-        is_dashscope = (
-            target_platform.startswith("dashscope")
-            or "dashscope.aliyuncs.com" in api_url
-            or "bailian" in api_url
-            or ("aliyuncs.com" in api_url and "compatible-mode" in api_url)
-        )
-        is_openrouter = target_platform.startswith("openrouter") or "openrouter.ai" in api_url
-
-        # OpenRouter 的思考强度走原生 reasoning.effort；它与顶层 reasoning_effort 是等价
-        # 写法且不允许同时出现，所以这里只发 reasoning，并复用界面的思考强度档位。
-        # 关闭思考时用 effort=none（OpenRouter 没有 enabled 字段）。
-        if is_openrouter:
-            valid_efforts = {"max", "xhigh", "high", "medium", "low", "minimal", "none"}
-            effort = think_depth if think_depth in valid_efforts else "medium"
-            if not platform_config.get("think_switch"):
-                effort = "none"
-
-            # 保留用户自己在 extra_body 里写的 reasoning 附加项（如 summary）。
-            raw_reasoning = extra_body.get("reasoning", {})
-            reasoning = copy.deepcopy(raw_reasoning) if isinstance(raw_reasoning, dict) else {}
-            reasoning["effort"] = effort
-            extra_body["reasoning"] = reasoning
-
-            params.pop("reasoning_effort", None)
-            extra_body.pop("reasoning_effort", None)
-            return params
-
-        # Grok 4.6 的推理无法关闭，始终按界面强度发送 reasoning_effort。
-        if is_xai:
-            xai_effort = think_depth if think_depth in {"low", "medium", "high", "xhigh"} else "xhigh"
-            params["reasoning_effort"] = xai_effort
-            return params
-
-        # 关闭开关时，对默认启用思考的平台显式发送禁用参数。
-        if not platform_config.get("think_switch"):
-            if is_openai and model_name_lower.startswith("gpt-5.6"):
-                params["reasoning_effort"] = "none"
-            elif is_deepseek:
-                extra_body["thinking"] = {"type": "disabled"}
-            elif is_zhipu and model_name_lower.startswith(("glm-4.5", "glm-4.6", "glm-4.7", "glm-5")):
-                extra_body["thinking"] = {"type": "disabled"}
-            elif is_dashscope and model_name_lower.startswith("qwen3"):
-                extra_body["enable_thinking"] = False
-            return params
-
-        # 如果是OpenAI 平台----
-        if is_openai:
-            # 推理模型使用顶层 reasoning_effort，普通模型不传该字段
-            if model_name_lower.startswith(("o1", "o3", "o4", "gpt-5")):
-                valid_efforts = {"low", "medium", "high", "xhigh", "max"}
-                params["reasoning_effort"] = think_depth if think_depth in valid_efforts else "medium"
-                # 新一代推理模型开启 reasoning 时不发送采样温度。
-                params.pop("temperature", None)
-            return params
-
-        # 如果是DeepSeek 平台----
-        if is_deepseek:
-            # 使用顶层 reasoning_effort；low/medium/high 统一映射为 high，xhigh 映射为 max
-            deepseek_effort = "max" if think_depth in {"xhigh", "max"} else "high"
-            params["reasoning_effort"] = deepseek_effort
-            extra_body["thinking"] = {"type": "enabled"}
-            return params
-
-        # 如果是智谱平台---- 
-        if is_zhipu:
-
-            # GLM 新系列支持 extra_body.thinking，旧模型保持默认参数
-            if model_name_lower.startswith(("glm-4.5", "glm-4.6", "glm-4.7", "glm-5")):
-                extra_body["thinking"] = {"type": "enabled"}
-            if model_name_lower.startswith("glm-5.2"):
-                valid_efforts = {"low", "medium", "high", "xhigh", "max"}
-                params["reasoning_effort"] = think_depth if think_depth in valid_efforts else "high"
-            return params
-
-        # 如果是阿里百炼平台----
-        if is_dashscope:
-            
-            # 兼容模式使用 enable_thinking，并可选传入 thinking_budget
-            extra_body["enable_thinking"] = True
-            try:
-                thinking_budget = int(platform_config.get("thinking_budget"))
-            except (TypeError, ValueError):
-                thinking_budget = None
-            if thinking_budget is not None and thinking_budget >= 0:
-                extra_body["thinking_budget"] = thinking_budget
-            return params
-
-        # 如果是其他平台----
-        params["reasoning_effort"] = think_depth
-
-        # 返回最终参数，包含原有参数和根据平台规则添加的思考相关参数
-        return params
+        return build_thinking_params(base_params, platform_config)
 
     # 手动解析SSE流式响应，合并为完整的ChatCompletion结果
     def _parse_sse_response(self, raw_text: str) -> tuple[str, str, int, int]:

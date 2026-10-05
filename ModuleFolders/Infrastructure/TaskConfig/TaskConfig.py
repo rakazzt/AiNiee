@@ -399,6 +399,10 @@ class TaskConfig(ConfigMixin, LogMixin, Base):
             "think_depth": platform_data.get("think_depth"),
             "thinking_budget": platform_data.get("thinking_budget", -1),
             "thinking_level": platform_data.get("thinking_level", "high"),
+            # 思考方言与来源 preset：让数据里声明的 profile 真的能到达请求器，
+            # 否则请求器只能退回按 tag / URL 嗅探。
+            "profile": platform_data.get("profile"),
+            "preset_key": platform_data.get("preset_key"),
         }
 
         # 声明式选项 → 请求参数。没有声明 options 的平台拿到空 overlay，
