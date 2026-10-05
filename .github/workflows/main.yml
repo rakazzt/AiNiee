@@ -72,9 +72,18 @@ jobs:
         include:
           - arch: arm64
             runs_on: macos-15
+            tolerant: false
           - arch: x86_64
             runs_on: macos-15-intel
+            # Intel runner 经常排不上队：曾出现 jobs 卡在 in_progress 七小时不结束，
+            # 而 release job needs 这个 job，于是整个发布被无限期拖死。
+            # 让这一条腿尽力而为：能出就出，出不来也不阻断发布。
+            tolerant: true
     runs-on: ${{ matrix.runs_on }}
+    # 卡死（而非失败）的 runner 不会自己结束，必须靠超时把它变成失败，
+    # 再由 continue-on-error 兜住，release 才有机会执行。
+    timeout-minutes: 45
+    continue-on-error: ${{ matrix.tolerant }}
     env:
       AINIEE_MACOS_ARCH: ${{ matrix.arch }}
       MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
