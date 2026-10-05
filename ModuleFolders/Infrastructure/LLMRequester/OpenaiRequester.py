@@ -3,7 +3,6 @@ from ModuleFolders.Log.Log import LogMixin
 from ModuleFolders.Infrastructure.LLMRequester.LLMClientFactory import LLMClientFactory
 from ModuleFolders.Infrastructure.LLMRequester.ThinkingProfiles import build_thinking_params
 
-import copy
 import json
 from openai.types.chat import ChatCompletion
 
