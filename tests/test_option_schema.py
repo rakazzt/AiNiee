@@ -1,9 +1,13 @@
+import json
 import unittest
+from pathlib import Path
 
 from ModuleFolders.Infrastructure.LLMRequester.OptionSchema import (
     OptionSchemaError,
+    apply_options_to_params,
     build_option_body,
     matches_when,
+    merge_into,
     option_defaults,
     resolve_options,
     resolve_preset_key,
@@ -247,6 +251,170 @@ class OptionDefaultsTests(unittest.TestCase):
 
     def test_missing_default_is_simply_absent(self):
         self.assertEqual(option_defaults([{"key": "a", "type": "bool"}]), {})
+
+
+class ApplyOptionsToParamsTests(unittest.TestCase):
+    """TaskConfig 每轮请求都会走这里：声明式选项必须真的进到请求参数里。"""
+
+    def _params(self):
+        # 形状与 TaskConfig.get_active_platform_configuration 的产出一致
+        return {
+            "target_platform": "openrouter_777",
+            "api_url": "https://openrouter.ai/api/v1",
+            "model_name": "google/gemini-3.8-flash",
+            "temperature": 1.0,
+            "extra_body": {},
+            "think_switch": True,
+            "think_depth": "medium",
+        }
+
+    def test_platform_without_options_is_byte_identical(self):
+        """回归：没有声明 options 的平台，params 一个字节都不能变。"""
+        params = self._params()
+        before = json.dumps(params, sort_keys=True)
+        apply_options_to_params(params, {"tag": "zhipu"}, PRESET)
+        self.assertEqual(json.dumps(params, sort_keys=True), before)
+
+    def test_declared_options_reach_the_request(self):
+        params = self._params()
+        apply_options_to_params(
+            params,
+            {"tag": "openrouter_777", "provider_order": ["Anthropic"],
+             "allow_fallbacks": False},
+            PRESET,
+        )
+        self.assertEqual(params["extra_body"]["provider"]["order"], ["Anthropic"])
+        self.assertEqual(params["extra_body"]["provider"]["allow_fallbacks"], False)
+
+    def test_unset_options_add_nothing(self):
+        params = self._params()
+        apply_options_to_params(params, {"tag": "openrouter_777"}, PRESET)
+        self.assertEqual(params["extra_body"], {})
+
+    def test_user_extra_body_siblings_survive(self):
+        # extra_body 打底、选项值按叶子覆盖：同层其它键必须保留
+        params = self._params()
+        params["extra_body"] = {"provider": {"allow_fallbacks": True}, "custom_thing": 1}
+        apply_options_to_params(
+            params,
+            {"tag": "openrouter_777", "provider_order": ["Anthropic"]},
+            PRESET,
+        )
+        self.assertEqual(params["extra_body"]["provider"]["allow_fallbacks"], True)
+        self.assertEqual(params["extra_body"]["provider"]["order"], ["Anthropic"])
+        self.assertEqual(params["extra_body"]["custom_thing"], 1)
+
+    def test_option_value_overrides_extra_body_leaf(self):
+        params = self._params()
+        params["extra_body"] = {"provider": {"order": ["Google"]}}
+        apply_options_to_params(
+            params, {"tag": "openrouter_777", "provider_order": ["Anthropic"]}, PRESET
+        )
+        self.assertEqual(params["extra_body"]["provider"]["order"], ["Anthropic"])
+
+    def test_input_config_is_not_mutated(self):
+        """params["extra_body"] 是 config 里的对象引用，合并绝不能写回 config。"""
+        shared = {"provider": {"order": ["Google"]}}
+        platform_config = {"tag": "openrouter_777", "provider_order": ["Anthropic"],
+                           "extra_body": shared}
+        params = self._params()
+        params["extra_body"] = shared
+
+        apply_options_to_params(params, platform_config, PRESET)
+
+        self.assertEqual(shared, {"provider": {"order": ["Google"]}},
+                         "the user's stored extra_body was modified in place")
+        self.assertEqual(platform_config["extra_body"], {"provider": {"order": ["Google"]}})
+
+    def test_param_vehicle_lands_top_level(self):
+        preset = {"p": {"options": [{"key": "effort", "type": "string",
+                                     "vehicle": "param", "path": "reasoning_effort"}]}}
+        params = self._params()
+        apply_options_to_params(params, {"tag": "p", "effort": "high"}, preset)
+        self.assertEqual(params["reasoning_effort"], "high")
+
+    def test_extra_body_is_always_a_dict_afterwards(self):
+        # 平台没配 extra_body 时不能把 None 留在参数里
+        params = self._params()
+        params["extra_body"] = None
+        apply_options_to_params(params, {"tag": "zhipu"}, PRESET)
+        self.assertIsInstance(params["extra_body"], dict)
+
+
+class MergeIntoTests(unittest.TestCase):
+    def test_overlay_wins_and_siblings_survive(self):
+        target = {"a": 1, "nested": {"x": 1, "y": 2}}
+        merge_into(target, {"b": 2, "nested": {"y": 9}})
+        self.assertEqual(target, {"a": 1, "b": 2, "nested": {"x": 1, "y": 9}})
+
+    def test_nested_dict_replaces_scalar(self):
+        target = {"a": 1}
+        merge_into(target, {"a": {"deep": True}})
+        self.assertEqual(target, {"a": {"deep": True}})
+
+    def test_empty_overlay_is_a_no_op(self):
+        target = {"a": 1}
+        merge_into(target, {})
+        merge_into(target, None)
+        self.assertEqual(target, {"a": 1})
+
+
+class RealPresetSchemaTests(unittest.TestCase):
+    """对真实 preset.json 的自检。
+
+    preset.json 是被鼓励 drop-in 替换的数据文件，能绕过 CI 生效，所以这份校验
+    在运行期也必须存在；这里把它固化成测试，任何声明写错都会在 CI 里红。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        preset_path = Path(__file__).parents[1] / "Resource" / "platforms" / "preset.json"
+        cls.preset = json.loads(preset_path.read_text(encoding="utf-8"))
+
+    def test_every_declared_schema_is_valid(self):
+        problems = []
+        for tag, platform in self.preset["platforms"].items():
+            options = platform.get("options")
+            if options is None:
+                continue
+            for error in validate_schema(options):
+                problems.append(f"{tag}: {error}")
+        self.assertEqual(problems, [])
+
+    def test_openrouter_declares_the_full_routing_surface(self):
+        options = {o["key"] for o in self.preset["platforms"]["openrouter"]["options"]}
+        expected = {
+            "provider_order", "provider_only", "provider_ignore", "provider_sort",
+            "provider_quantizations", "provider_allow_fallbacks", "provider_require_parameters",
+            "provider_data_collection", "provider_zdr", "provider_enforce_distillable_text",
+            "provider_max_price_prompt", "provider_max_price_completion",
+            "provider_preferred_max_latency", "provider_preferred_min_throughput",
+            "fallback_models", "reasoning_summary",
+        }
+        self.assertEqual(expected - options, set(), "missing routing options")
+
+    def test_option_keys_do_not_collide_with_legacy_settings(self):
+        """选项键不能与 key_in_settings 撞名。
+
+        否则界面会出现两组写同一个配置键的控件（一套走旧的手写方法、一套走
+        schema），后写的赢，用户会看到重复项。
+        """
+        for tag, platform in self.preset["platforms"].items():
+            legacy = set(platform.get("key_in_settings") or [])
+            for descriptor in platform.get("options") or []:
+                self.assertNotIn(
+                    descriptor["key"], legacy,
+                    f"{tag}: option {descriptor['key']} collides with a legacy setting key",
+                )
+
+    def test_openrouter_routing_options_do_not_touch_reasoning_effort(self):
+        """reasoning.effort 目前仍由 OpenaiRequester 的 legacy 分支写。
+
+        schema 里若也声明它就会双写同一个叶子，值可能互相覆盖。等渲染器迁移
+        完成后再搬过来，并同步更新表征基线。
+        """
+        paths = {o["path"] for o in self.preset["platforms"]["openrouter"]["options"]}
+        self.assertNotIn("reasoning.effort", paths)
 
 
 if __name__ == "__main__":

@@ -336,6 +336,24 @@
                 "moonshotai/kimi-k3",
                 "x-ai/grok-4.7"
             ],
+            "options": [
+                {"key": "provider_order", "type": "string-list", "vehicle": "extra_body", "path": "provider.order"},
+                {"key": "provider_only", "type": "string-list", "vehicle": "extra_body", "path": "provider.only"},
+                {"key": "provider_ignore", "type": "string-list", "vehicle": "extra_body", "path": "provider.ignore"},
+                {"key": "provider_sort", "type": "enum", "values": ["price", "throughput", "latency", "exacto"], "vehicle": "extra_body", "path": "provider.sort"},
+                {"key": "provider_quantizations", "type": "string-list", "vehicle": "extra_body", "path": "provider.quantizations"},
+                {"key": "provider_allow_fallbacks", "type": "bool", "vehicle": "extra_body", "path": "provider.allow_fallbacks"},
+                {"key": "provider_require_parameters", "type": "bool", "vehicle": "extra_body", "path": "provider.require_parameters"},
+                {"key": "provider_data_collection", "type": "enum", "values": ["deny", "allow"], "vehicle": "extra_body", "path": "provider.data_collection"},
+                {"key": "provider_zdr", "type": "bool", "vehicle": "extra_body", "path": "provider.zdr"},
+                {"key": "provider_enforce_distillable_text", "type": "bool", "vehicle": "extra_body", "path": "provider.enforce_distillable_text"},
+                {"key": "provider_max_price_prompt", "type": "string", "vehicle": "extra_body", "path": "provider.max_price.prompt"},
+                {"key": "provider_max_price_completion", "type": "string", "vehicle": "extra_body", "path": "provider.max_price.completion"},
+                {"key": "provider_preferred_max_latency", "type": "number-or-object", "vehicle": "extra_body", "path": "provider.preferred_max_latency"},
+                {"key": "provider_preferred_min_throughput", "type": "number-or-object", "vehicle": "extra_body", "path": "provider.preferred_min_throughput"},
+                {"key": "fallback_models", "type": "string-list", "vehicle": "extra_body", "path": "models"},
+                {"key": "reasoning_summary", "type": "enum", "values": ["auto", "concise", "detailed"], "vehicle": "extra_body", "path": "reasoning.summary"}
+            ],
             "key_in_settings": [
                 "api_key",
                 "model",

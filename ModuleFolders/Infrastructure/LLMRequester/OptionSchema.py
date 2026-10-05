@@ -14,6 +14,7 @@
 CI 也能在不启动 GUI 的前提下守住这些规则。
 """
 
+import copy
 import re
 
 # 允许写入的请求体顶层键：数据只能在这些槽位里选，不能自己发明路径。
@@ -317,3 +318,37 @@ def option_defaults(options) -> dict:
         if isinstance(key, str) and "default" in descriptor:
             defaults[key] = descriptor["default"]
     return defaults
+
+
+def merge_into(target: dict, overlay: dict) -> dict:
+    """把 overlay 递归合并进 target（overlay 胜出），保留 target 的同层其它键。"""
+    for key, value in _as_dict(overlay).items():
+        if isinstance(value, dict) and isinstance(target.get(key), dict):
+            merge_into(target[key], value)
+        else:
+            target[key] = value
+    return target
+
+
+def apply_options_to_params(params: dict, platform_config, preset_platforms) -> dict:
+    """把声明式选项折算进请求参数，就地返回 params。
+
+    这是「UI 存了值、请求里却没有」这条断链的修复点：TaskConfig 每轮请求都会
+    调用它。没有声明 options 的平台拿到空 overlay，params 一个字节都不变，
+    因此存量 13 个 provider 的行为不受影响。
+
+    优先级沿用现有语义：extra_body 打底，选项值按叶子覆盖。
+    params["extra_body"] 是平台配置里的对象引用，先深拷贝再合并，否则会把
+    合并结果写回 config。
+    """
+    option_body = build_option_body(platform_config, preset_platforms)
+
+    # 必须深拷贝：dict() 只是浅拷贝，嵌套的 provider/... 对象仍与 config 共享，
+    # merge_into 递归写下去就会把合并结果写回用户存的那份 extra_body，
+    # 下一次 save_config 就把它持久化了 —— 回退到旧版本时会被二次合并。
+    raw_extra_body = params.get("extra_body")
+    extra_body = copy.deepcopy(raw_extra_body) if isinstance(raw_extra_body, dict) else {}
+    params["extra_body"] = merge_into(extra_body, option_body["extra_body"])
+
+    merge_into(params, option_body["param"])
+    return params

@@ -8,6 +8,7 @@ from ModuleFolders.Base.Base import Base
 from ModuleFolders.Config.Config import ConfigMixin
 from ModuleFolders.Config.FilePathConfig import auto_output_dir, auto_polish_output_dir, default_polish_output_dir
 from ModuleFolders.Log.Log import LogMixin
+from ModuleFolders.Infrastructure.LLMRequester.OptionSchema import apply_options_to_params
 
 
 # 接口请求器
@@ -399,5 +400,14 @@ class TaskConfig(ConfigMixin, LogMixin, Base):
             "thinking_budget": platform_data.get("thinking_budget", -1),
             "thinking_level": platform_data.get("thinking_level", "high"),
         }
+
+        # 声明式选项 → 请求参数。没有声明 options 的平台拿到空 overlay，
+        # params 与改造前逐字节一致；声明了 options 的平台，这里就是
+        # 「UI 存了值但请求里没有」那条断链的修复点。
+        apply_options_to_params(
+            params,
+            platform_data,
+            self.load_platform_presets().get("platforms", {}),
+        )
 
         return params

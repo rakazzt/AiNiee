@@ -7,6 +7,7 @@ from rich import print
 
 from ModuleFolders.Config.FilePathConfig import (
     config_path,
+    platform_preset_path,
     resource_path,
 )
 from ModuleFolders.Infrastructure.Platform.RuntimeSetup import migrate_config_if_needed
@@ -16,6 +17,10 @@ from ModuleFolders.Domain.RegexSwitchHelper import RegexSwitchHelper
 class ConfigMixin:
     CONFIG_PATH = config_path()
     CONFIG_FILE_LOCK = threading.Lock()
+
+    # platform preset 的缓存：(mtime_ns, size) -> (stamp, data)
+    _preset_cache = {}
+    _preset_lock = threading.Lock()
 
     multilingual_interface_dict = {}
     current_interface_language = "简中"
@@ -54,6 +59,44 @@ class ConfigMixin:
                 traceback.print_exc()
 
         return combined_data
+
+    @classmethod
+    def load_platform_presets(cls) -> dict:
+        """读取 Resource/platforms/preset.json，按 (mtime, size) 缓存。
+
+        请求路径每轮都会用到它，不能每次读盘；但 preset 恰恰是被鼓励做
+        drop-in 热补丁的数据文件，所以缓存必须随文件变化失效，而不是进程内
+        永久缓存 —— 否则打了补丁却要重启才生效。
+
+        读失败或结构不对时返回 {"platforms": {}}：声明式选项整体降级为空，
+        调用方退回到改造前的行为，不允许因为 schema 读不到就让请求崩掉。
+        """
+        path = str(platform_preset_path())
+        try:
+            stat = os.stat(path)
+            stamp = (stat.st_mtime_ns, stat.st_size)
+        except OSError:
+            return {"platforms": {}}
+
+        with ConfigMixin._preset_lock:
+            cached = ConfigMixin._preset_cache.get(path)
+            if cached is not None and cached[0] == stamp:
+                return cached[1]
+
+        try:
+            with open(path, "r", encoding="utf-8") as reader:
+                data = json.load(reader)
+        except Exception as error:
+            print(f"[red]Error loading platform preset: {error}[/red]")
+            return {"platforms": {}}
+
+        if not isinstance(data, dict):
+            print("[red]Platform preset root is not an object; ignoring it.[/red]")
+            return {"platforms": {}}
+
+        with ConfigMixin._preset_lock:
+            ConfigMixin._preset_cache[path] = (stamp, data)
+        return data
 
     def load_config(self) -> dict:
         config = {}
