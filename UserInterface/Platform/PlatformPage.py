@@ -225,6 +225,14 @@ class PlatformPage(QFrame, ConfigMixin, ToastMixin, Base):
             "icon": FluentIcon.ASTERISK,
             "order": 2,
         },
+        # 决策模型不是翻译接口：它不生成文本，只回答带概率的类型化问题。单独分组是为了
+        # 让翻译流程不会误把它当成可用的翻译接口。
+        "decision": {
+            "title_key": "决策模型",
+            "description": "用于判断（语言、残留原文等）的 System One / JEV 接口",
+            "icon": FluentIcon.ROBOT,
+            "order": 3,
+        },
     }
 
     def __init__(self, text: str, window):
@@ -318,7 +326,7 @@ class PlatformPage(QFrame, ConfigMixin, ToastMixin, Base):
 
     def _populate_api_cards(self, config):
         platforms = config.get("platforms", {})
-        grouped_platforms = {"local": [], "online": [], "custom": []}
+        grouped_platforms = {"local": [], "online": [], "custom": [], "decision": []}
 
         for tag, api_data in platforms.items():
             group = api_data.get("group", "custom")

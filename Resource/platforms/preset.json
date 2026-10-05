@@ -443,6 +443,84 @@
                 "thinking_budget",
                 "thinking_level"
             ]
+        },
+        "jev": {
+            "tag": "jev",
+            "profile": "default",
+            "group": "decision",
+            "name": "JEV 决策模型（TypeSafe）",
+            "docs": {
+                "api_key_url": "https://docs.typesafe.ai/introduction/quickstart",
+                "docs_url": "https://docs.typesafe.ai/api",
+                "models_url": "https://docs.typesafe.ai/models",
+                "notes": {
+                    "简中": "System One 决策模型：只回答类型化问题（noul / choice / score）并给出概率，不生成文本，因此不能用作翻译接口；用途是判断（如语言检查）。",
+                    "English": "A System One decision model: it answers typed questions (noul / choice / score) with probabilities and never generates text, so it cannot be used as a translation interface. Use it for judgments such as the language check."
+                }
+            },
+            "api_url": "https://api.typesafe.ai",
+            "api_key": "",
+            "api_format": "SystemOne",
+            "icon": "custom",
+            "rpm_limit": 4096,
+            "model": "jev-latest",
+            "temperature": 1.0,
+            "tls_switch": false,
+            "think_switch": false,
+            "think_depth": "low",
+            "thinking_level": "high",
+            "auto_complete": false,
+            "model_datas": [
+                "jev-latest",
+                "jev-1.13"
+            ],
+            "extra_body": {},
+            "options": [],
+            "key_in_settings": [
+                "api_url",
+                "api_key",
+                "model",
+                "rpm_limit"
+            ]
+        },
+        "jev_openrouter": {
+            "tag": "jev_openrouter",
+            "profile": "default",
+            "group": "decision",
+            "name": "JEV 决策模型（OpenRouter）",
+            "docs": {
+                "api_key_url": "https://openrouter.ai/settings/keys",
+                "docs_url": "https://openrouter.ai/docs/guides/community/jev",
+                "models_url": "https://openrouter.ai/typesafe/jev-1.13",
+                "notes": {
+                    "简中": "通过 OpenRouter 调用同一决策模型，计费到 OpenRouter 账户；请在下方填入模型 ID（如 typesafe/jev-1.13）。",
+                    "English": "The same decision model through OpenRouter, billed to your OpenRouter account. Fill in the model id below (for example typesafe/jev-1.13)."
+                }
+            },
+            "api_url": "https://openrouter.ai/api",
+            "api_key": "",
+            "api_format": "SystemOne",
+            "icon": "custom",
+            "rpm_limit": 4096,
+            "model": "typesafe/jev-1.13",
+            "temperature": 1.0,
+            "tls_switch": false,
+            "think_switch": false,
+            "think_depth": "low",
+            "thinking_level": "high",
+            "auto_complete": false,
+            "model_datas": [
+                "typesafe/jev-1.13",
+                "~typesafe/jev-latest"
+            ],
+            "extra_body": {},
+            "options": [],
+            "key_in_settings": [
+                "api_url",
+                "api_key",
+                "model",
+                "rpm_limit"
+            ]
         }
     }
 }

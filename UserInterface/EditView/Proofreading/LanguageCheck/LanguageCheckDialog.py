@@ -1,7 +1,7 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QGridLayout, QVBoxLayout, QWidget
-from qfluentwidgets import CaptionLabel, ComboBox, DoubleSpinBox, MessageBoxBase, SpinBox, StrongBodyLabel
+from qfluentwidgets import CaptionLabel, ComboBox, DoubleSpinBox, MessageBoxBase, SpinBox, StrongBodyLabel, SwitchButton
 
 from ModuleFolders.Base.Base import Base
 from ModuleFolders.Config.Config import ConfigMixin
@@ -15,6 +15,7 @@ class LanguageCheckDialog(ConfigMixin, Base, MessageBoxBase):
             "check_lang_mode_text": "judge",
             "check_chunk_size": 20,
             "check_threshold_ratio": 0.75,
+            "check_use_decision_model": False,
         }
         self.config_data = self.save_config(self.load_config_from_default())
 
@@ -55,12 +56,19 @@ class LanguageCheckDialog(ConfigMixin, Base, MessageBoxBase):
         self.threshold_spin.setDecimals(2)
         self.threshold_spin.setFixedWidth(160)
 
+        # AI 判定（决策模型）：把「这行是不是目标语言 / 有没有残留原文」交给 System One 模型
+        # 判断，本地检测器保留为回退。需要先在接口管理里添加决策模型接口。
+        self.decision_label = StrongBodyLabel(self.tra("AI 判定（决策模型）"), self)
+        self.decision_switch = SwitchButton(self)
+
         settings_layout.addWidget(self.mode_label, 0, 0)
         settings_layout.addWidget(self.mode_combo, 0, 1)
         settings_layout.addWidget(self.chunk_label, 1, 0)
         settings_layout.addWidget(self.chunk_spin, 1, 1)
         settings_layout.addWidget(self.threshold_label, 2, 0)
         settings_layout.addWidget(self.threshold_spin, 2, 1)
+        settings_layout.addWidget(self.decision_label, 3, 0)
+        settings_layout.addWidget(self.decision_switch, 3, 1)
 
         self.view_layout.addWidget(settings_container)
 
@@ -70,22 +78,34 @@ class LanguageCheckDialog(ConfigMixin, Base, MessageBoxBase):
         note_label.setWordWrap(True)
         self.view_layout.addWidget(note_label)
 
+        decision_note = CaptionLabel(
+            self.tra("AI 判定会让决策模型逐行判断语言与残留原文，需在「接口管理 → 决策模型」中先添加接口；模型不可用时自动退回本地检测"),
+            self,
+        )
+        decision_note.setTextColor(QColor(120, 120, 120), QColor(160, 160, 160))
+        decision_note.setAlignment(Qt.AlignCenter)
+        decision_note.setWordWrap(True)
+        self.view_layout.addWidget(decision_note)
+
     def _restore_ui_state(self):
         mode_code = self.config_data.get("check_lang_mode_text", "judge")
         self.mode_combo.setCurrentText(self.tra("精准判断") if mode_code == "judge" else self.tra("宏观统计"))
         self.chunk_spin.setValue(max(1, int(self.config_data.get("check_chunk_size", 20))))
         self.threshold_spin.setValue(float(self.config_data.get("check_threshold_ratio", 0.75)))
+        self.decision_switch.setChecked(bool(self.config_data.get("check_use_decision_model", False)))
 
     def _connect_signals(self):
         self.mode_combo.currentTextChanged.connect(self._on_setting_changed)
         self.chunk_spin.valueChanged.connect(self._on_setting_changed)
         self.threshold_spin.valueChanged.connect(self._on_setting_changed)
+        self.decision_switch.checkedChanged.connect(self._on_setting_changed)
 
     def _on_setting_changed(self):
         config = self.load_config()
         config["check_lang_mode_text"] = "judge" if self.mode_combo.currentText() == self.tra("精准判断") else "report"
         config["check_chunk_size"] = self.chunk_spin.value()
         config["check_threshold_ratio"] = self.threshold_spin.value()
+        config["check_use_decision_model"] = self.decision_switch.isChecked()
         self.save_config(config)
         self.config_data = config
 
@@ -94,5 +114,6 @@ class LanguageCheckDialog(ConfigMixin, Base, MessageBoxBase):
             "mode": self.config_data.get("check_lang_mode_text", "judge"),
             "chunk_size": self.chunk_spin.value(),
             "threshold": self.threshold_spin.value(),
+            "use_decision_model": self.decision_switch.isChecked(),
         }
         super().accept()

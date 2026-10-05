@@ -324,6 +324,7 @@ class AddAPIDialog(MessageBoxBase, ConfigMixin, ToastMixin, Base):
             """初始化平台选择按钮（采用分组卡片式设计）"""
             local_platforms = {k: v for k, v in self.preset_platforms.items() if v.get("group") == "local"}
             online_platforms = {k: v for k, v in self.preset_platforms.items() if v.get("group") == "online"}
+            decision_platforms = {k: v for k, v in self.preset_platforms.items() if v.get("group") == "decision"}
             other_platforms = {}
             if "custom" in self.preset_platforms:
                 other_platforms["custom"] = self.preset_platforms["custom"]
@@ -331,11 +332,13 @@ class AddAPIDialog(MessageBoxBase, ConfigMixin, ToastMixin, Base):
             # 动态拼接 Emoji 与翻译后的文本，确保多语言匹配正常
             local_title = f"💻 {self.tra('本地模型')}"
             online_title = f"☁️ {self.tra('官方接口')}"
+            decision_title = f"🧠 {self.tra('决策模型')}"
             other_title = f"⚙️ {self.tra('其他')}"
 
             # 分区创建卡片
             self._create_platform_group(local_title, local_platforms, layout)
             self._create_platform_group(online_title, online_platforms, layout)
+            self._create_platform_group(decision_title, decision_platforms, layout)
             self._create_platform_group(other_title, other_platforms, layout)
 
     def _on_platform_selected(self, tag: str):

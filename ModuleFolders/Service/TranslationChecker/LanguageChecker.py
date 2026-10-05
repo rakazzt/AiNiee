@@ -7,6 +7,7 @@ from ModuleFolders.Base.Base import Base
 from ModuleFolders.Config.Config import ConfigMixin
 from ModuleFolders.Log.Log import LogMixin
 from ModuleFolders.Domain.FileReader import ReaderUtil
+from ModuleFolders.Infrastructure.DecisionEngine import Checks, DecisionEngine
 from ModuleFolders.Service.Cache.CacheItem import CacheItem
 from ModuleFolders.Service.Cache.CacheManager import CacheManager
 from ModuleFolders.Service.TaskExecutor import TranslatorUtil
@@ -25,6 +26,14 @@ class LanguageChecker(ConfigMixin, LogMixin, Base):
         self._last_results = []
         self._last_target_language_name = self.config.get("target_language", "english")
         self._last_target_language_code = TranslatorUtil.map_language_name_to_code(self._last_target_language_name) or self._last_target_language_name
+        self._last_source_language_name = self.config.get("source_language", "")
+        self._last_source_language_code = TranslatorUtil.map_language_name_to_code(self._last_source_language_name) or self._last_source_language_name
+
+        # AI 决策层（System One / JEV）。未配置决策模型时为 None，检查器照旧使用本地检测器。
+        # 决策层只负责「判断」，检测结果的结构与本地检测器完全一致，因此下游分块统计/标记/
+        # 报告逻辑一行都不用改。
+        self._decision_engine = DecisionEngine.from_config(self.config)
+        self._use_decision_model = False
 
     def _build_error_type(self, detected_lang: str | None, target_lang: str | None = None) -> str:
         detected_lang = detected_lang or "unknown"
@@ -53,6 +62,12 @@ class LanguageChecker(ConfigMixin, LogMixin, Base):
                 threshold = 0.75
         except:
             threshold = 0.75
+
+        # AI 判定开关。用户开了开关但没配置决策模型时，退回本地检测器而不是静默什么都判不了。
+        wants_decision_model = bool(params.get("use_decision_model", False))
+        self._use_decision_model = wants_decision_model and self._decision_engine is not None
+        if wants_decision_model and self._decision_engine is None:
+            self.warning("已启用 AI 判定，但尚未配置决策模型（接口管理 → 决策模型），本次退回本地语言检测。")
 
         lang_result_code, lang_data = self.check_language(mode, chunk_size, threshold)
 
@@ -240,6 +255,14 @@ class LanguageChecker(ConfigMixin, LogMixin, Base):
         finally:
             ReaderUtil.close_lang_detector()
         self.info("语言检查完成，耗时 {:.2f} 秒".format(time.time() - start_time))
+        if self._use_decision_model and self._decision_engine is not None:
+            summary = self._decision_engine.summary()
+            if summary["failures"]:
+                self.warning("决策模型调用 {} 次，失败 {} 次，已回退本地检测；最后错误：{}".format(
+                    summary["calls"], summary["failures"], summary["last_error"]))
+            else:
+                self.info("决策模型调用 {} 次，提问 {} 个，输入 {} Tokens，花费 {} USD".format(
+                    summary["calls"], summary["questions"], summary["input_tokens"], summary["cost"]))
 
         # 如果在精准判断模式下发现了问题，则保存带有标记的缓存
         if is_judging and all_results:
@@ -299,11 +322,72 @@ class LanguageChecker(ConfigMixin, LogMixin, Base):
         return None, {}
 
     def _run_detection(self, items_to_check: List[CacheItem], check_target: str) -> list:
-        """辅助函数，对给定的 CacheItem 列表运行语言检测。"""
+        """辅助函数，对给定的 CacheItem 列表运行语言检测。
+
+        启用 AI 判定时交给决策模型；模型不可用、返回不可读或没有配置时，整体退回本地检测器。
+        两种路径返回同一种结构：每行一个 (语言代码列表, 置信度)。
+        """
+        if self._use_decision_model:
+            decided = self._decide_with_model(items_to_check, check_target)
+            if decided is not None:
+                return decided
+            self.warning("决策模型本次未返回可用判定，已回退本地语言检测器。")
+
         texts = [getattr(item, check_target, "") for item in items_to_check]
         # 使用一个临时的、不包含任何复杂数据的 CacheItem 列表进行检测
         dummy_items = [CacheItem(source_text=t) for t in texts]
         return ReaderUtil.detect_language_with_mediapipe(dummy_items, 0, None)
+
+    def _decide_with_model(self, items_to_check: List[CacheItem], check_target: str) -> list | None:
+        """用决策模型判断每行译文，返回与本地检测器同构的结果；无法判定时返回 None。
+
+        问题与判定规则都在 Checks 里（无 Qt 依赖，可单独测试）：每行两个原子问题，
+        分别是「是否已是目标语言」和「是否仍残留原文」。第二个问题正是字符类规则做不到的
+        那件事——中文目标语言里汉字本来就是合法的，所以朴素的字符比对无法区分「已翻译」和「没翻译」。
+        两个问题合并进同一个请求，输出 token 不计费，因此拆开问不额外花钱。
+        """
+        target_label = self._language_label(self._last_target_language_name, self._last_target_language_code)
+        source_label = self._language_label(self._last_source_language_name, self._last_source_language_code)
+
+        def build(index: int, item: CacheItem):
+            return (
+                {
+                    "source": getattr(item, "source_text", "") or "",
+                    "translated": getattr(item, check_target, "") or "",
+                },
+                Checks.language_questions(index),
+            )
+
+        answers = self._decision_engine.decide_batch(
+            items_to_check,
+            build,
+            purpose="language_check",
+            extra_state={"target_language": target_label, "source_language": source_label},
+        )
+
+        results = []
+        for index in range(len(items_to_check)):
+            verdict = Checks.language_verdict(
+                answers[index],
+                index,
+                self._last_target_language_code,
+                self._last_source_language_code,
+            )
+            if verdict is None:
+                # 任何一行读不出答案就整体回退：半套 AI 结果和半套本地结果混在一起，
+                # 会让分块比例阈值失去意义。
+                return None
+            results.append(verdict)
+        return results
+
+    @staticmethod
+    def _language_label(name: str, code: str) -> str:
+        """给决策模型看的语言标识：名称 + 代码，比单给代码更难被误解。"""
+        name = (name or "").strip()
+        code = (code or "").strip()
+        if name and code and name != code:
+            return "{0} ({1})".format(name, code)
+        return name or code or "unknown"
 
 
     def _analyze_file_in_chunks(self, cache_file, check_target: str, target_language_code: str, flag_key: str, chunk_size: int, threshold: float) -> Dict[str, Any] | None:

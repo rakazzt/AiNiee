@@ -5,6 +5,18 @@ from ModuleFolders.Infrastructure.LLMRequester.AnthropicRequester import Anthrop
 from ModuleFolders.Infrastructure.LLMRequester.AmazonbedrockRequester import AmazonbedrockRequester
 from ModuleFolders.Infrastructure.LLMRequester.OpenaiRequester import OpenaiRequester
 
+def is_decision_platform(platform_config: dict) -> bool:
+    """该接口是否为决策模型（System One / JEV）。
+
+    决策模型只回答类型化问题、不生成文本，所以它不能当聊天/翻译接口用。判定放在这里而不是
+    sent_request 里，是为了让「哪些平台会被交给聊天请求器」这件事只有一个定义——测试
+    （test_option_mapping_baseline）直接复用本函数，两边不会各写一份而慢慢走偏。
+    """
+    if not isinstance(platform_config, dict):
+        return False
+    return platform_config.get("group") == "decision" or platform_config.get("api_format") == "SystemOne"
+
+
 # 接口请求器
 class LLMRequester():
     def __init__(self) -> None:
@@ -15,6 +27,12 @@ class LLMRequester():
     # 缓存断点的 provider（Anthropic 系 / OpenRouter 透传）切分缓存断点使用；其余请求器
     # 忽略它，行为与此前一致。
     def sent_request(self, messages: list[dict], system_prompt: str, platform_config: dict, system_prompt_stable: str = "") -> tuple[bool, str, str, int, int]:
+        # 决策模型（System One / JEV）只回答类型化问题，不生成文本，因此不能当翻译接口用。
+        # 与其让它落进 OpenAI 分支后报一个看不懂的 400，不如在这里直接说清楚。
+        if is_decision_platform(platform_config):
+            name = platform_config.get("name") or platform_config.get("tag") or "该接口"
+            return True, "", "「{}」是决策模型接口（只做判断，不生成文本），不能用作翻译/润色接口；请在接口管理中改选一个翻译接口。".format(name), 0, 0
+
         # 获取平台参数
         target_platform = platform_config.get("target_platform")
         api_format = platform_config.get("api_format")

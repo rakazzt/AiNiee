@@ -13,6 +13,7 @@ from qfluentwidgets import (
 from ModuleFolders.Base.Base import Base
 from ModuleFolders.Config.Config import ConfigMixin
 from ModuleFolders.Config.FilePathConfig import platform_icon_path
+from ModuleFolders.Infrastructure.LLMRequester.LLMRequester import is_decision_platform
 
 
 class APIItemCard(QWidget, ConfigMixin, Base):
@@ -79,14 +80,17 @@ class APIItemCard(QWidget, ConfigMixin, Base):
     def _build_menu(self, button):
         menu = RoundMenu(parent=button)
 
-        activate_action = Action(
-            FluentIcon.ACCEPT_MEDIUM,
-            self.tra("激活接口"),
-            triggered=lambda checked=False: self.activateClicked.emit(self.api_tag),
-        )
-        self._activate_actions.append(activate_action)
-        menu.addAction(activate_action)
-        menu.addSeparator()
+        # 决策模型只回答问题、不生成文本，没有可激活的聊天角色，所以不提供「激活接口」。
+        # sent_request 里还有一道兜底，防止它被其它路径选中。
+        if not is_decision_platform(getattr(self, "api_data", None) or {}):
+            activate_action = Action(
+                FluentIcon.ACCEPT_MEDIUM,
+                self.tra("激活接口"),
+                triggered=lambda checked=False: self.activateClicked.emit(self.api_tag),
+            )
+            self._activate_actions.append(activate_action)
+            menu.addAction(activate_action)
+            menu.addSeparator()
 
         menu.addAction(
             Action(

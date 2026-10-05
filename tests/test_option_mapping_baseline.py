@@ -2,6 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
+from ModuleFolders.Infrastructure.LLMRequester.LLMRequester import is_decision_platform
 from ModuleFolders.Infrastructure.LLMRequester.OpenaiRequester import OpenaiRequester
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "option_mapping_baseline.json"
@@ -69,8 +70,11 @@ class OptionMappingBaselineTests(unittest.TestCase):
         preset = json.loads(PRESET_PATH.read_text(encoding="utf-8"))
         routed = sorted(
             tag
-            for tag in preset["platforms"]
+            for tag, platform in preset["platforms"].items()
             if not tag.startswith(NON_OPENAI_TAG_PREFIXES)
+            # 决策模型接口由 sent_request 提前拦下，从不进入聊天请求器，所以不需要基线用例。
+            # 判定复用生产代码的同一个函数，避免两边各写一份而走偏。
+            and not is_decision_platform(platform)
         )
         covered = sorted({case_id.split("|")[0].split("_")[0] for case_id in self.fixture["cases"]})
         self.assertEqual(
