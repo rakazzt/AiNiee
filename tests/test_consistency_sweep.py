@@ -379,5 +379,117 @@ class TestSweepFeedsGrouping(unittest.TestCase):
         self.assertEqual(len(groups), 4, "each derived name keeps its own entry")
 
 
+
+
+def original_group_sources(raw_grouped_inputs, enable_short_name_merge=True):
+    """The grouping exactly as it stood before the sweep, copied from the previous commit.
+
+    Kept here as a characterisation reference: with no verdict from the model, group_sources
+    must reproduce this byte for byte, so enabling the decision layer cannot change extraction
+    for anyone who has not configured it.
+    """
+    if not enable_short_name_merge:
+        grouped_inputs = {
+            source: {
+                "source": source,
+                "merged_sources": [source],
+                "candidates": list(grouped_item.get("candidates", [])),
+            }
+            for source, grouped_item in raw_grouped_inputs.items()
+        }
+        source_aliases = {source: source for source in grouped_inputs}
+    else:
+        sorted_sources = sorted(raw_grouped_inputs.keys(), key=lambda s: (-len(s), s))
+        grouped_inputs, source_aliases, consumed_sources = {}, {}, set()
+
+        for source in sorted_sources:
+            if source in consumed_sources:
+                continue
+
+            merged_group = {
+                "source": source,
+                "merged_sources": [source],
+                "candidates": list(raw_grouped_inputs[source].get("candidates", [])),
+            }
+            grouped_inputs[source] = merged_group
+            source_aliases[source] = source
+            consumed_sources.add(source)
+
+            for other_source in sorted_sources:
+                if other_source in consumed_sources or other_source == source:
+                    continue
+                if other_source in source:  # short source attaches to the long one
+                    merged_group["merged_sources"].append(other_source)
+                    merged_group["candidates"].extend(
+                        raw_grouped_inputs[other_source].get("candidates", [])
+                    )
+                    source_aliases[other_source] = source
+                    consumed_sources.add(other_source)
+    return grouped_inputs, source_aliases
+
+
+class TestParityWithTheOriginalRule(unittest.TestCase):
+    """No decision model must mean no change at all - asserted, not assumed."""
+
+    CASES = [
+        [],
+        [ARTHUR],
+        [ARTHUR, EXCALIBUR],
+        [FENGSHEN, FENGSHEN_ZHAN],
+        [ARTHUR, ARTHUR + "\u965b\u4e0b", EXCALIBUR],                   # alias chain
+        [ARTHUR[:2], ARTHUR, EXCALIBUR],                               # three-level nest
+        [FENGSHEN, FENGSHEN_ZHAN, ARTHUR, EXCALIBUR],                  # two families
+        ["ab", "abcd", "bcde"],                                        # overlapping, not nested
+        [ARTHUR, ARTHUR],                                              # duplicate key collapses
+    ]
+
+    def raw(self, sources):
+        return {
+            source: {"source": source, "merged_sources": [source],
+                     "candidates": [{"candidate_source": source, "type": "term"}]}
+            for source in sources
+        }
+
+    def test_an_empty_verdict_set_reproduces_the_original_exactly(self):
+        for sources in self.CASES:
+            raw = self.raw(sources)
+            with self.subTest(sources=sources):
+                self.assertEqual(sweep_module.group_sources(raw), original_group_sources(raw))
+
+    def test_an_empty_verdict_set_reproduces_the_original_with_merging_off(self):
+        for sources in self.CASES:
+            raw = self.raw(sources)
+            with self.subTest(sources=sources):
+                self.assertEqual(
+                    sweep_module.group_sources(raw, enable_short_name_merge=False),
+                    original_group_sources(raw, enable_short_name_merge=False),
+                )
+
+    def test_the_one_divergence_is_the_derived_term_gaining_its_own_entry(self):
+        """Blocking one pair must change that pair's membership and nothing else.
+
+        The group KEY survives either way - what changes is that the short term stops being
+        absorbed, so it becomes an entry of its own instead of vanishing.
+        """
+        sources = [FENGSHEN, FENGSHEN_ZHAN, ARTHUR, EXCALIBUR]
+        raw = self.raw(sources)
+        original, original_aliases = original_group_sources(raw)
+        swept, swept_aliases = sweep_module.group_sources(raw, {(FENGSHEN, FENGSHEN_ZHAN)})
+
+        # Before: the short term was absorbed and had no entry of its own.
+        self.assertEqual(original[FENGSHEN_ZHAN]["merged_sources"], [FENGSHEN_ZHAN, FENGSHEN])
+        self.assertEqual(original_aliases[FENGSHEN], FENGSHEN_ZHAN)
+        self.assertNotIn(FENGSHEN, original)
+
+        # After: it keeps its own group, and nothing about the other family changed.
+        self.assertEqual(swept[FENGSHEN_ZHAN]["merged_sources"], [FENGSHEN_ZHAN])
+        self.assertEqual(swept[FENGSHEN]["merged_sources"], [FENGSHEN])
+        self.assertEqual(swept_aliases[FENGSHEN], FENGSHEN)
+        # The other family is untouched, including the member it absorbed (亚瑟王).
+        self.assertEqual(swept[EXCALIBUR], original[EXCALIBUR])
+        self.assertEqual(original[EXCALIBUR]["merged_sources"], [EXCALIBUR, ARTHUR])
+        self.assertEqual(set(swept) - set(original), {FENGSHEN})
+
+
 if __name__ == "__main__":
     unittest.main()
