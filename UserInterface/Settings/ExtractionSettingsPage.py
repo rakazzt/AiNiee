@@ -15,6 +15,7 @@ class ExtractionSettingsPage(QFrame, ConfigMixin, Base):
             "extract_task_token_limit": 10000,
             "auto_extract_non_translate_switch": False,
             "extract_short_name_merge_switch": True,
+            "extract_consistency_sweep_switch": True,
         }
 
         config = self.save_config(self.load_config_from_default())
@@ -26,6 +27,7 @@ class ExtractionSettingsPage(QFrame, ConfigMixin, Base):
         self.add_widget_extract_token_limit(self.container, config)
         self.add_widget_auto_extract_non_translate(self.container, config)
         self.add_widget_short_name_merge(self.container, config)
+        self.add_widget_consistency_sweep(self.container, config)
         self.container.addStretch(1)
 
     def add_widget_extract_token_limit(self, parent, config) -> None:
@@ -78,6 +80,28 @@ class ExtractionSettingsPage(QFrame, ConfigMixin, Base):
             SwitchButtonCard(
                 self.tra("自动合并长短名称"),
                 self.tra("例如同时提取到“亚瑟”和“亚瑟王”时，开启后会合并为一项，关闭后会分别保留"),
+                init=init,
+                checked_changed=checked_changed,
+            )
+        )
+
+    def add_widget_consistency_sweep(self, parent, config) -> None:
+        def init(widget: SwitchButtonCard) -> None:
+            widget.set_checked(config.get("extract_consistency_sweep_switch", True))
+
+        def checked_changed(widget: SwitchButtonCard, checked: bool) -> None:
+            config = self.load_config()
+            config["extract_consistency_sweep_switch"] = checked
+            self.save_config(config)
+
+        parent.addWidget(
+            SwitchButtonCard(
+                self.tra("术语一致性巡检（决策模型）"),
+                self.tra(
+                    "用决策模型区分「同一实体」与「派生名」：别名才合并，像“风神”和“风神斩”这样"
+                    "彼此独立的词会各自保留词条；同时剔除单字与过于通用的词条，并检查派生词的"
+                    "同名部分译法是否一致。需先在「接口管理 → 决策模型」中添加接口"
+                ),
                 init=init,
                 checked_changed=checked_changed,
             )

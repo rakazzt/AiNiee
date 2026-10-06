@@ -8,6 +8,8 @@ from ModuleFolders.Base.Base import Base
 from ModuleFolders.Config.Config import ConfigMixin
 from ModuleFolders.Domain.PromptBuilder.PromptBuilderExtraction import PromptBuilderExtraction
 from ModuleFolders.Log.Log import LogMixin
+from ModuleFolders.Infrastructure.DecisionEngine import DecisionEngine
+from ModuleFolders.Infrastructure.DecisionEngine.ConsistencySweep import ConsistencySweep, group_sources
 from ModuleFolders.Infrastructure.LLMRequester.LLMRequester import LLMRequester
 from ModuleFolders.Infrastructure.RequestLimiter.RequestLimiter import RequestLimiter
 from ModuleFolders.Infrastructure.TaskConfig.TaskConfig import TaskConfig
@@ -39,6 +41,11 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
         self.request_limiter = RequestLimiter()
         self.grouped_stage_two_inputs = {} # 第二阶段的输入结构：{主source: {source, merged_sources, candidates}}
         self.grouped_stage_two_source_aliases = {} # 第二阶段的 source 别名映射：{所有source: 主source}
+        # 决策模型（System One / JEV）：只在配置了决策接口且开关打开时启用，
+        # 否则整条抽取流程与启用前逐字节一致。
+        self._decision_engine = None
+        self._decision_engine_resolved = False
+        self._last_source_sweep = None
 
 
     # ========================================================================
@@ -171,6 +178,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             )
             self.info("开始汇总最终分析结果并写回缓存 ...")
             final_data = self._finalize_results(first_stage_results, second_stage_results)
+            self._sweep_term_consistency(final_data)
             if not getattr(self.config, "auto_extract_non_translate_switch", False):
                 final_data["non_translate"] = []
             self._emit_progress_update(
@@ -348,6 +356,98 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             self.error(f"第二阶段合并失败: {error}")
             return {"characters": [], "terms": []}
 
+    # ========================================================================
+    # 术语一致性巡检（决策模型 / System One）
+    # ========================================================================
+
+    def _consistency_engine(self):
+        """决策模型引擎；开关关闭或未配置决策接口时返回 None。"""
+        if not getattr(self.config, "extract_consistency_sweep_switch", True):
+            return None
+        if not self._decision_engine_resolved:
+            self._decision_engine = DecisionEngine.from_config(self.load_config())
+            self._decision_engine_resolved = True
+            if self._decision_engine is None:
+                self.info("未配置决策模型，术语一致性巡检跳过（抽取行为与启用前一致）。")
+        return self._decision_engine
+
+    def _apply_consistency_sweep(self, raw_grouped_inputs):
+        """判定候选 source 之间的关系，并剔除不安全的词条。
+
+        返回 (保留的候选表, 禁止合并的 source 对)。判定规则：
+          * 同一实体（别名 / 简称 / 带称谓）→ 允许合并，维持原有行为；
+          * 派生名（风神 → 风神斩）→ 禁止合并，两条各自保留，单独出现的短词才有词条；
+          * 过于笼统（单字 / 常用词）→ 直接剔除，避免固定译法污染无关文本；
+          * 未判定（模型不可用 / 读取不出）→ 按原逻辑合并，行为不因模型故障而改变。
+        """
+        engine = self._consistency_engine()
+        if engine is None or not raw_grouped_inputs:
+            return raw_grouped_inputs, set()
+
+        terms = []
+        for source, item in raw_grouped_inputs.items():
+            kinds = sorted({
+                str(candidate.get("type", "")).strip()
+                for candidate in item.get("candidates", [])
+                if str(candidate.get("type", "")).strip()
+            })
+            terms.append({"source": source, "kind": "/".join(kinds)})
+
+        sweep = ConsistencySweep(engine)
+        outcome = sweep.sweep_sources(terms)
+        self._last_source_sweep = outcome
+
+        dropped = set(outcome.dropped)
+        if dropped:
+            preview = "、".join(sorted(dropped)[:10])
+            self.warning("术语一致性巡检：剔除 {} 个过于笼统的词条（单字 {} 个，通用词 {} 个）：{}{}".format(
+                len(dropped), len(outcome.single_character), len(outcome.generic),
+                preview, " 等" if len(dropped) > 10 else ""))
+
+        if outcome.keep_separate:
+            preview = "；".join("{} ⊂ {}".format(short, long) for short, long in sorted(outcome.keep_separate)[:5])
+            self.info("术语一致性巡检：判定 {} 对为派生名或无关关系，保持各自独立（{}）。".format(
+                len(outcome.keep_separate), preview))
+        if outcome.pairs_dropped:
+            self.warning("术语一致性巡检：候选对超过上限，{} 对未判定（按原逻辑处理）。".format(outcome.pairs_dropped))
+
+        kept = {source: item for source, item in raw_grouped_inputs.items() if source not in dropped}
+        return kept, outcome.keep_separate
+
+    def _sweep_term_consistency(self, final_data) -> None:
+        """对最终词表做一致性巡检：派生词与其来源词的公共名称是否译法一致。
+
+        只做「发现」：把不一致写进该词条的备注并在日志里逐条列出。自动改写译文超出了
+        判定模型的职责（它只给概率，不产出文本），改写也可能破坏已有的正确译法。
+        """
+        engine = self._consistency_engine()
+        outcome = self._last_source_sweep
+        if engine is None or outcome is None or not outcome.subordinate:
+            return
+
+        entries, rows = [], {}
+        for key in ("characters", "terms"):
+            for row in final_data.get(key, []) or []:
+                source = str(row.get("source", "")).strip()
+                if not source:
+                    continue
+                entries.append({"source": source, "translation": str(row.get("recommended_translation", "")).strip()})
+                rows[source] = row
+
+        result = ConsistencySweep(engine).sweep_translations(entries, outcome.subordinate)
+        for short_source, long_source, probability in result.inconsistent:
+            long_row = rows.get(long_source) or {}
+            self.warning("术语一致性：{}（{}）与 {} 中的同名部分译法不一致（一致度 {:.0%}），建议统一后再翻译。".format(
+                long_source, long_row.get("recommended_translation", ""), short_source, probability))
+            if long_row:
+                marker = "同名部分与「{}」译法不一致".format(short_source)
+                note = str(long_row.get("note", "")).strip()
+                if marker not in note:
+                    long_row["note"] = (note + " | " + marker) if note else marker
+        if result.judged:
+            self.info("术语一致性巡检：检查 {} 对派生词，发现 {} 对译法不一致。".format(
+                result.judged, len(result.inconsistent)))
+
     def _prepare_reduction_batches(self, first_stage_results: list) -> list:
         """组装第二阶段所需的候选组批次：短词挂靠长词"""
         raw_grouped_inputs = {}
@@ -373,47 +473,18 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                     "gender": "", "category_path": str(row.get("category_path", "")).strip(), "note": str(row.get("note", "")).strip(),
                 })
 
-        enable_short_name_merge = bool(
-            getattr(self.config, "extract_short_name_merge_switch", True)
+        # 决策模型先判定「同实体」还是「派生名」，并剔除过于笼统的词条。
+        # 未配置决策模型时原样返回，下面的逻辑与启用前完全一致。
+        raw_grouped_inputs, sweep_keep_separate = self._apply_consistency_sweep(raw_grouped_inputs)
+
+        # 短 source 挂靠：仅当二者是同一实体（别名/简称/带称谓）时才并成一条。派生名
+        # （风神 → 风神斩）必须各自成条，否则单独出现的短词会丢掉词条、译法随之漂移。
+        # 规则本体在 ConsistencySweep.group_sources，可脱离 Qt 直接测试。
+        grouped_inputs, source_aliases = group_sources(
+            raw_grouped_inputs,
+            sweep_keep_separate,
+            enable_short_name_merge=bool(getattr(self.config, "extract_short_name_merge_switch", True)),
         )
-
-        if not enable_short_name_merge:
-            grouped_inputs = {
-                source: {
-                    "source": source,
-                    "merged_sources": [source],
-                    "candidates": list(grouped_item.get("candidates", [])),
-                }
-                for source, grouped_item in raw_grouped_inputs.items()
-            }
-            source_aliases = {source: source for source in grouped_inputs}
-        else:
-            sorted_sources = sorted(raw_grouped_inputs.keys(), key=lambda s: (-len(s), s))
-            grouped_inputs, source_aliases, consumed_sources = {}, {}, set()
-
-            for source in sorted_sources:
-                if source in consumed_sources:
-                    continue
-
-                merged_group = {
-                    "source": source,
-                    "merged_sources": [source],
-                    "candidates": list(raw_grouped_inputs[source].get("candidates", [])),
-                }
-                grouped_inputs[source] = merged_group
-                source_aliases[source] = source
-                consumed_sources.add(source)
-
-                for other_source in sorted_sources:
-                    if other_source in consumed_sources or other_source == source:
-                        continue
-                    if other_source in source:  # 短 source 挂靠
-                        merged_group["merged_sources"].append(other_source)
-                        merged_group["candidates"].extend(
-                            raw_grouped_inputs[other_source].get("candidates", [])
-                        )
-                        source_aliases[other_source] = source
-                        consumed_sources.add(other_source)
 
         self.grouped_stage_two_inputs = grouped_inputs
         self.grouped_stage_two_source_aliases = source_aliases
