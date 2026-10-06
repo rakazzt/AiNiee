@@ -101,6 +101,132 @@
       "繁中": "本地模型",
       "English": "Local Model",
       "日本語": "ローカルモデル"
+    },
+    "决策增强（JEV）": {
+      "简中": "决策增强（JEV）",
+      "繁中": "決策增強（JEV）",
+      "English": "Decision-aware (JEV)",
+      "日本語": "意思決定強化（JEV）"
+    },
+    "默认（推荐）": {
+      "简中": "默认（推荐）",
+      "繁中": "預設（推薦）",
+      "English": "Default (recommended)",
+      "日本語": "既定（推奨）"
+    },
+    "当前决策设置": {
+      "简中": "当前决策设置",
+      "繁中": "目前決策設定",
+      "English": "Current decision settings",
+      "日本語": "現在の意思決定設定"
+    },
+    "创建新设置": {
+      "简中": "创建新设置",
+      "繁中": "建立新設定",
+      "English": "Create new settings",
+      "日本語": "新しい設定を作成"
+    },
+    "名称": {
+      "简中": "名称",
+      "繁中": "名稱",
+      "English": "Name",
+      "日本語": "名前"
+    },
+    "请输入名称": {
+      "简中": "请输入名称",
+      "繁中": "請輸入名稱",
+      "English": "Enter a name",
+      "日本語": "名前を入力してください"
+    },
+    "开": {
+      "简中": "开",
+      "繁中": "開",
+      "English": "On",
+      "日本語": "オン"
+    },
+    "关": {
+      "简中": "关",
+      "繁中": "關",
+      "English": "Off",
+      "日本語": "オフ"
+    },
+    "例如：只报告不剔除": {
+      "简中": "例如：只报告不剔除",
+      "繁中": "例如：只報告不剔除",
+      "English": "e.g. report only",
+      "日本語": "例：報告のみ"
+    },
+    "判定条目的关系（同一实体 / 派生名）": {
+      "简中": "判定条目的关系（同一实体 / 派生名）",
+      "繁中": "判定條目的關係（同一實體／派生名）",
+      "English": "Judge term relations (same entity / derived name)",
+      "日本語": "項目の関係を判定（同一実体／派生名）"
+    },
+    "检查派生词的公共名称译法是否一致": {
+      "简中": "检查派生词的公共名称译法是否一致",
+      "繁中": "檢查派生詞的公共名稱譯法是否一致",
+      "English": "Check a derived name's shared part is translated consistently",
+      "日本語": "派生語の共通部分の訳が一致しているか確認"
+    },
+    "判定条目是否过于笼统": {
+      "简中": "判定条目是否过于笼统",
+      "繁中": "判定條目是否過於籠統",
+      "English": "Judge whether a term is too generic",
+      "日本語": "項目が一般的すぎないか判定"
+    },
+    "剔除单字条目（按长度，不消耗请求）": {
+      "简中": "剔除单字条目（按长度，不消耗请求）",
+      "繁中": "剔除單字條目（按長度，不消耗請求）",
+      "English": "Drop one-character terms (by length, no request needed)",
+      "日本語": "1文字の項目を除外（長さで判定、リクエスト不要）"
+    },
+    "剔除判定为笼统的条目（关：只报告不剔除）": {
+      "简中": "剔除判定为笼统的条目（关：只报告不剔除）",
+      "繁中": "剔除判定為籠統的條目（關：只報告不剔除）",
+      "English": "Drop terms judged generic (off: report only)",
+      "日本語": "一般的と判定された項目を除外（オフ：報告のみ）"
+    },
+    "判定阈值（概率低于此值视为无法判定）": {
+      "简中": "判定阈值（概率低于此值视为无法判定）",
+      "繁中": "判定閾值（機率低於此值視為無法判定）",
+      "English": "Decision threshold (below this, treated as undecided)",
+      "日本語": "判定しきい値（これ未満は判定不能として扱う）"
+    },
+    "单次巡检最多判定的条目对数量": {
+      "简中": "单次巡检最多判定的条目对数量",
+      "繁中": "單次巡檢最多判定的條目對數量",
+      "English": "Most term pairs judged in one sweep",
+      "日本語": "1回の検査で判定する組の上限"
+    },
+    "决策层（System One / JEV）在抽取完成后判定条目关系、检查派生词译法一致性，并剔除不安全的词条。这里只决定它能做什么，判断本身由决策模型给出；若未在「接口管理 → 决策模型」中配置接口，巡检会整体跳过。": {
+      "简中": "决策层（System One / JEV）在抽取完成后判定条目关系、检查派生词译法一致性，并剔除不安全的词条。这里只决定它能做什么，判断本身由决策模型给出；若未在「接口管理 → 决策模型」中配置接口，巡检会整体跳过。",
+      "繁中": "決策層（System One / JEV）在抽取完成後判定條目關係、檢查派生詞譯法一致性，並剔除不安全的詞條。這裡只決定它能做什麼，判斷本身由決策模型給出；若未在「介面管理 → 決策模型」中設定介面，巡檢會整體跳過。",
+      "English": "The decision layer (System One / JEV) judges term relations, checks that derived names stay consistent, and removes unsafe entries after extraction. This page only decides what it may do; the judgments come from the decision model. With no interface configured under \"API Management -> Decision Model\", the sweep is skipped entirely.",
+      "日本語": "意思決定層（System One / JEV）は抽出後に項目の関係を判定し、派生語の訳の一貫性を確認し、安全でない項目を除外します。このページは実行できる内容だけを決めます。判定自体は意思決定モデルが行います。「インターフェース管理 → 意思決定モデル」で設定していない場合、検査は全体がスキップされます。"
+    },
+    "这些设置决定巡检会提出哪些问题、以及会剔除什么；均由程序执行，不改写任何译文。": {
+      "简中": "这些设置决定巡检会提出哪些问题、以及会剔除什么；均由程序执行，不改写任何译文。",
+      "繁中": "這些設定決定巡檢會提出哪些問題、以及會剔除什麼；均由程式執行，不改寫任何譯文。",
+      "English": "These settings decide which questions the sweep asks and what it removes. Everything is carried out by code; no translation is ever rewritten.",
+      "日本語": "これらの設定は、検査がどのような質問をし、何を除外するかを決めます。実行はすべてプログラムが行い、訳文を書き換えることはありません。"
+    },
+    "原有提示词：只做提取与合并裁决。": {
+      "简中": "原有提示词：只做提取与合并裁决。",
+      "繁中": "原有提示詞：只做提取與合併裁決。",
+      "English": "The original prompt: extraction and merge adjudication only.",
+      "日本語": "従来のプロンプト：抽出と統合の裁定のみ。"
+    },
+    "配合决策层：拆开派生名、保留独立短形式、拒绝不安全键。": {
+      "简中": "配合决策层：拆开派生名、保留独立短形式、拒绝不安全键。",
+      "繁中": "配合決策層：拆開派生名、保留獨立短形式、拒絕不安全鍵。",
+      "English": "Works with the decision layer: separates derived names, keeps standalone short forms, refuses unsafe keys.",
+      "日本語": "意思決定層と連携：派生名を分離し、独立した短縮形を保持し、安全でないキーを拒否します。"
+    },
+    "关系判定 {0}｜一致性检查 {1}｜笼统词判定 {2}｜剔除单字 {3}｜剔除笼统词 {4}｜阈值 {5:.2f}｜上限 {6} 对": {
+      "简中": "关系判定 {0}｜一致性检查 {1}｜笼统词判定 {2}｜剔除单字 {3}｜剔除笼统词 {4}｜阈值 {5:.2f}｜上限 {6} 对",
+      "繁中": "關係判定 {0}｜一致性檢查 {1}｜籠統詞判定 {2}｜剔除單字 {3}｜剔除籠統詞 {4}｜閾值 {5:.2f}｜上限 {6} 對",
+      "English": "Relations {0} | Consistency {1} | Generic terms {2} | Drop single chars {3} | Drop generic {4} | Threshold {5:.2f} | Cap {6} pairs",
+      "日本語": "関係判定 {0}｜一貫性検査 {1}｜曖昧語判定 {2}｜1文字を除外 {3}｜曖昧語を除外 {4}｜しきい値 {5:.2f}｜上限 {6} 組"
     }
   },
   "PART_2": {

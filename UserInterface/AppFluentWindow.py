@@ -26,6 +26,7 @@ from UserInterface.BaseNavigationItem import BaseNavigationItem
 from UserInterface.EditView.EditViewPage import EditViewPage
 from UserInterface.Native.MacOSUI import about_message, app_menu_title, command_shortcut
 from UserInterface.Platform.PlatformPage import PlatformPage
+from UserInterface.PromptSettings.ExtractionSettings.DecisionSettingsPage import DecisionSettingsPage
 from UserInterface.PromptSettings.ExtractionSettings.ExtractionPromptPage import ExtractionPromptPage
 from UserInterface.PromptSettings.PolishingSettings.PolishingSystemPromptPage import PolishingSystemPromptPage
 from UserInterface.LogView.LogViewPage import LogViewPage
@@ -334,6 +335,16 @@ class AppFluentWindow(FluentWindow, ConfigMixin, LogMixin, ToastMixin, Base):
             self.extraction_judgment_prompt_page,
             FluentIcon.LABEL,
             self.tra("裁定提示"),
+            parent=self.extraction_prompt_navigation,
+        )
+        # 决策层（System One / JEV）设置：默认一套 + 可自建多套，驱动术语一致性巡检。
+        self.extraction_decision_settings_page = DecisionSettingsPage(
+            "extraction_decision_settings_page", self
+        )
+        self.addSubInterface(
+            self.extraction_decision_settings_page,
+            FluentIcon.ROBOT,
+            self.tra("决策设置"),
             parent=self.extraction_prompt_navigation,
         )
 

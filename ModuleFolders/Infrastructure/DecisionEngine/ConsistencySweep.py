@@ -21,7 +21,7 @@ Everything here is pure and Qt-free: pair finding, question building and verdict
 plain dicts, so the logic is testable without the app or the network.
 """
 
-from ModuleFolders.Infrastructure.DecisionEngine import Questions
+from ModuleFolders.Infrastructure.DecisionEngine import DecisionSettings, Questions
 
 # Relations. Only an alias may be merged; the other two must stay separate entries.
 ALIAS = "alias"
@@ -124,13 +124,13 @@ def consistency_question(index: int) -> dict:
 
 # --- reading verdicts ---------------------------------------------------------
 
-def read_relation(answers, index: int):
+def read_relation(answers, index: int, threshold: float = DECISION_THRESHOLD):
     """The chosen relation, or None when it could not be read (caller fails open)."""
     label = Questions.choice_label(answers, "r{0}".format(index))
     if label not in RELATIONS:
         return None
     probabilities = Questions.choice_probabilities(answers, "r{0}".format(index))
-    if probabilities is not None and probabilities.get(label, 0.0) < DECISION_THRESHOLD:
+    if probabilities is not None and probabilities.get(label, 0.0) < threshold:
         # Too close to call: treat as unknown rather than acting on a coin flip.
         return None
     return label
@@ -150,24 +150,35 @@ def read_consistency(answers, index: int):
 class SourceSweep:
     """What the source-side sweep decided. Every field is data; nothing is mutated here."""
 
-    def __init__(self):
-        self.single_character = []   # dropped on length alone, before any request
+    def __init__(self, drop_single_character: bool = True, drop_generic: bool = True):
+        self.single_character = []   # found by length alone, before any request
         self.generic = []            # judged too generic to be a safe glossary entry
+        # What the policy actually removes. A finding the settings say to keep is still
+        # reported, so "report only" is visible in the log rather than looking like a no-op.
+        self.dropped = []
+        self._drop_single_character = drop_single_character
+        self._drop_generic = drop_generic
         self.relations = {}          # (shorter, longer) -> relation
         self.keep_separate = set()   # pairs that must NOT be merged into one entry
         self.subordinate = []        # (shorter, longer) pairs worth a consistency check
         self.pairs_total = 0
         self.pairs_dropped = 0       # pairs the cap left unjudged
 
-    @property
-    def dropped(self):
-        """Sources the sweep removes from the glossary, in report order."""
-        return list(dict.fromkeys(self.single_character + self.generic))
+    def record_single_character(self, source: str) -> None:
+        self.single_character.append(source)
+        if self._drop_single_character:
+            self.dropped.append(source)
+
+    def record_generic(self, source: str) -> None:
+        self.generic.append(source)
+        if self._drop_generic:
+            self.dropped.append(source)
 
     def summary(self) -> dict:
         return {
             "single_character": len(self.single_character),
             "generic": len(self.generic),
+            "dropped": len(self.dropped),
             "pairs": self.pairs_total,
             "pairs_judged": len(self.relations),
             "pairs_dropped": self.pairs_dropped,
@@ -194,9 +205,12 @@ class TranslationSweep:
 class ConsistencySweep:
     """Runs the decisions and reports them. The caller applies the consequences."""
 
-    def __init__(self, engine, max_pairs: int = MAX_PAIRS):
+    def __init__(self, engine, max_pairs: int = MAX_PAIRS, settings=None):
         self.engine = engine
-        self.max_pairs = max_pairs
+        # Settings decide what the sweep is allowed to do; max_pairs stays a constructor
+        # argument so existing callers keep working without a settings map.
+        self.settings = DecisionSettings.normalize(settings)
+        self.max_pairs = max_pairs if settings is None else self.settings["max_pairs"]
 
     # --- source side: relations and junk terms --------------------------------
 
@@ -206,29 +220,35 @@ class ConsistencySweep:
         Order matters and is deliberate: junk is removed first, so a dropped term is never
         merged into anything and never costs a relation question.
         """
-        outcome = SourceSweep()
+        settings = self.settings
+        outcome = SourceSweep(
+            drop_single_character=settings["drop_single_character"],
+            drop_generic=settings["drop_generic"],
+        )
         kept = []
         for term in terms or []:
             source = str((term or {}).get("source", "")).strip()
             if not source:
                 continue
             if is_single_character(source):
-                outcome.single_character.append(source)
-                continue
+                outcome.record_single_character(source)
+                if settings["drop_single_character"]:
+                    continue  # removed by length, so no request is spent judging it
+                # Keep it in play so the generic question can still have its say.
             kept.append({"source": source, "kind": str((term or {}).get("kind", "")).strip()})
 
-        if kept:
+        if kept and settings["generic_switch"]:
             answers = self.engine.decide_batch(kept, self._build_generic, purpose="term_generic")
             for index, term in enumerate(kept):
                 probability = read_generic(answers[index], index)
-                if probability is not None and probability >= DECISION_THRESHOLD:
-                    outcome.generic.append(term["source"])
+                if probability is not None and probability >= settings["threshold"]:
+                    outcome.record_generic(term["source"])
 
         sources = [term["source"] for term in kept]
         pairs, dropped = find_containment_pairs(sources, self.max_pairs)
         outcome.pairs_total = len(pairs)
         outcome.pairs_dropped = dropped
-        if pairs:
+        if pairs and settings["relation_switch"]:
             def build_relation(index, pair):
                 short_index, long_index = pair
                 return (
@@ -238,7 +258,7 @@ class ConsistencySweep:
 
             answers = self.engine.decide_batch(pairs, build_relation, purpose="term_relation")
             for index, (short_index, long_index) in enumerate(pairs):
-                relation = read_relation(answers[index], index)
+                relation = read_relation(answers[index], index, settings["threshold"])
                 if relation is None:
                     continue  # unknown keeps the pre-sweep behaviour for this pair
                 key = (sources[short_index], sources[long_index])
@@ -263,6 +283,8 @@ class ConsistencySweep:
         compare, and inventing a verdict would flag a term the sweep never saw.
         """
         outcome = TranslationSweep()
+        if not self.settings["consistency_switch"]:
+            return outcome
         by_source = {}
         for entry in entries or []:
             source = str((entry or {}).get("source", "")).strip()
@@ -290,7 +312,7 @@ class ConsistencySweep:
                 outcome.skipped += 1
                 continue
             outcome.judged += 1
-            if probability < DECISION_THRESHOLD:
+            if probability < self.settings["threshold"]:
                 outcome.inconsistent.append((pair["a"]["source"], pair["b"]["source"], probability))
         return outcome
 

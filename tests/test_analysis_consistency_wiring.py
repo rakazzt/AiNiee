@@ -168,5 +168,64 @@ class TestTermConsistencyReport(unittest.TestCase):
         post.assert_not_called()
 
 
+
+
+@unittest.skipUnless(AnalysisTask is not None, SKIP_REASON)
+class TestSecondStageRowContract(unittest.TestCase):
+    """The decision prompt may return one row per distinct entity inside a group.
+
+    That is only safe if the collection step handles the extra row. When the group was merged
+    (no decision model, so no verdict), the alias map folds the short name into the long one,
+    and the second row must be dropped - not duplicated, and not crash.
+    """
+
+    def task_with(self, merged):
+        task = make_task(make_engine())
+        if merged:
+            task.grouped_stage_two_inputs = {
+                FENGSHEN_ZHAN: {
+                    "source": FENGSHEN_ZHAN,
+                    "merged_sources": [FENGSHEN_ZHAN, FENGSHEN],
+                    "candidates": [
+                        {"candidate_source": FENGSHEN_ZHAN, "type": "term"},
+                        {"candidate_source": FENGSHEN, "type": "term"},
+                    ],
+                },
+            }
+            task.grouped_stage_two_source_aliases = {
+                FENGSHEN_ZHAN: FENGSHEN_ZHAN, FENGSHEN: FENGSHEN_ZHAN,
+            }
+        else:
+            task.grouped_stage_two_inputs = {
+                source: {"source": source, "merged_sources": [source],
+                         "candidates": [{"candidate_source": source, "type": "term"}]}
+                for source in (FENGSHEN_ZHAN, FENGSHEN)
+            }
+            task.grouped_stage_two_source_aliases = {FENGSHEN_ZHAN: FENGSHEN_ZHAN,
+                                                     FENGSHEN: FENGSHEN}
+        return task
+
+    ROWS = [
+        {"source": FENGSHEN_ZHAN, "recommended_translation": "Wind God Slash", "category_path": ""},
+        {"source": FENGSHEN, "recommended_translation": "Wind God", "category_path": ""},
+    ]
+
+    def test_an_extra_row_for_a_merged_group_is_dropped_not_duplicated(self):
+        final = self.task_with(merged=True)._finalize_results([], [{"terms": list(self.ROWS)}])
+        self.assertEqual([row["source"] for row in final["terms"]], [FENGSHEN_ZHAN])
+        self.assertEqual(final["terms"][0]["recommended_translation"], "Wind God Slash")
+
+    def test_both_rows_survive_when_the_pair_was_kept_apart(self):
+        final = self.task_with(merged=False)._finalize_results([], [{"terms": list(self.ROWS)}])
+        self.assertEqual(sorted(row["source"] for row in final["terms"]),
+                         sorted([FENGSHEN, FENGSHEN_ZHAN]))
+
+    def test_a_row_for_a_source_the_group_never_had_is_still_accepted(self):
+        """The no-invention guard lives in the prompt, not here - but it must not crash."""
+        rows = [{"source": ARTHUR, "recommended_translation": "King Arthur"}]
+        final = self.task_with(merged=True)._finalize_results([], [{"terms": rows}])
+        self.assertIn(ARTHUR, [row["source"] for row in final["terms"]])
+
+
 if __name__ == "__main__":
     unittest.main()

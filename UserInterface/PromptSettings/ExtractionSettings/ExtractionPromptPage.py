@@ -32,14 +32,18 @@ class ExtractionPromptPage(QFrame, ConfigMixin, Base):
         self.settings = PromptBuilderExtraction.STAGES[stage]
 
         config = self.load_config()
-        self.preset_prompt = {
-            "id": self.settings["preset_id"],
-            "name": self.tra("通用"),
-            "content": PromptBuilderExtraction.get_system_default(stage),
-            "type": "system",
-        }
+        # 内置变体（通用 / 决策增强）与用户自建提示词并列展示；内置卡片不可编辑或删除。
+        self.system_prompts = PromptBuilderExtraction.get_system_presets(config, stage)
+        for preset in self.system_prompts:
+            preset["name"] = self.tra(preset["name"])
+            preset["description"] = self.tra(preset["description"])
+        self.preset_prompt = self.system_prompts[0]
         self.user_prompts = PromptBuilderExtraction.get_user_prompts(config, stage)
-        selected = PromptBuilderExtraction.get_selected_user_prompt(config, stage) or self.preset_prompt
+        selected = (
+            PromptBuilderExtraction.get_selected_user_prompt(config, stage)
+            or PromptBuilderExtraction.get_selected_system_prompt(config, stage)
+            or self.preset_prompt
+        )
         self.selected_prompt_card = None
         self.selected_prompt_id = selected["id"]
 
@@ -119,7 +123,7 @@ class ExtractionPromptPage(QFrame, ConfigMixin, Base):
             item = self.card_grid_layout.takeAt(0)
             item.widget().deleteLater()
 
-        self.all_prompts = [self.preset_prompt] + self.user_prompts
+        self.all_prompts = self.system_prompts + self.user_prompts
         for index, prompt in enumerate(self.all_prompts):
             card = PromptCard(prompt, self.card_container_widget)
             card.prompt_selected.connect(self.display_prompt_details)
@@ -147,7 +151,11 @@ class ExtractionPromptPage(QFrame, ConfigMixin, Base):
         card.set_selected_style()
         self.selected_prompt_card = card
         self.selected_prompt_id = prompt_data["id"]
-        self.selected_prompt_name_label.setText(prompt_data["name"])
+        # 内置变体带一句说明，让它显示出来，而不是当作死字段带着。
+        description = prompt_data.get("description", "")
+        self.selected_prompt_name_label.setText(
+            "{0} — {1}".format(prompt_data["name"], description) if description else prompt_data["name"]
+        )
         self.selected_prompt_content_text.setPlainText(prompt_data["content"])
 
         # 同一次写入保存卡片列表与选择，且只更新本阶段的两个配置项。

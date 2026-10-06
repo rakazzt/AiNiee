@@ -8,7 +8,7 @@ from ModuleFolders.Base.Base import Base
 from ModuleFolders.Config.Config import ConfigMixin
 from ModuleFolders.Domain.PromptBuilder.PromptBuilderExtraction import PromptBuilderExtraction
 from ModuleFolders.Log.Log import LogMixin
-from ModuleFolders.Infrastructure.DecisionEngine import DecisionEngine
+from ModuleFolders.Infrastructure.DecisionEngine import DecisionEngine, DecisionSettings
 from ModuleFolders.Infrastructure.DecisionEngine.ConsistencySweep import ConsistencySweep, group_sources
 from ModuleFolders.Infrastructure.LLMRequester.LLMRequester import LLMRequester
 from ModuleFolders.Infrastructure.RequestLimiter.RequestLimiter import RequestLimiter
@@ -269,13 +269,29 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             return {"characters": [], "terms": [], "non_translate": []}
 
     def _get_recommended_translation_language_requirement(self) -> str:
-        """构建 recommended_translation 的目标语言约束说明。"""
+        """构建 recommended_translation 的目标语言约束说明（语言与提取系统提示词保持一致）。"""
         target_language = str(getattr(self.config, "target_language", "") or "").strip()
-        display_name = TranslatorUtil.pair.get(target_language, "")
-        if display_name:
-            return f"角色与术语的译名/分类/备注，不翻译项的分类/备注都必须写成{display_name}。"
 
-        return "角色与术语的译名/分类/备注，不翻译项的分类/备注都必须跟随当前译文语言设置。"
+        # 中文目标：中文约束句（与中文系统提示词配套）
+        if PromptBuilderExtraction.is_chinese_target(target_language):
+            display_name = TranslatorUtil.pair.get(target_language, "")
+            if display_name:
+                return f"角色与术语的译名/分类/备注，不翻译项的分类/备注都必须写成{display_name}。"
+
+            return "角色与术语的译名/分类/备注，不翻译项的分类/备注都必须跟随当前译文语言设置。"
+
+        # 非中文目标：英文约束句（与英文系统提示词配套）
+        display_name_en = TranslatorUtil.pair_en.get(target_language, "")
+        if display_name_en:
+            return (
+                "All recommended translations as well as all gender/category/note annotations "
+                f"must be written in the configured target language: {display_name_en}. "
+                "Keep the canonical category tokens and the `source` text unchanged."
+            )
+        return (
+            "All recommended translations as well as all gender/category/note annotations "
+            "must be written in the configured target language."
+        )
 
     def _build_first_stage_prompt(self, source_text: str) -> tuple[str, list[dict]]:
             """第一阶段：独立文本提取（优化版提示词）"""
@@ -283,7 +299,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             
             # 优化 Few-Shot：包含更丰富的混合场景，注意 {{}} 是转义 Python 的 f-string 占位符
             fake_user = (
-                "请分析以下文本并提取信息，角色与术语的译名/分类/备注，不翻译项的分类/备注都必须写成简体中文。\n"
+                "请分析以下文本并提取信息；所有译名、分类与备注都必须使用最后一条指令中声明的目标语言书写。\n"
                 "---\n"
                 "露娜小姐：请携带[圣剑]前往星门集合。\n"
                 "精灵族战士即将施放月光斩。\n"
@@ -371,6 +387,10 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                 self.info("未配置决策模型，术语一致性巡检跳过（抽取行为与启用前一致）。")
         return self._decision_engine
 
+    def _decision_settings(self) -> dict:
+        """本次巡检采用的决策层设置（提取提示词 → 决策设置）。缺省即内置默认。"""
+        return DecisionSettings.get_selected(self.load_config())
+
     def _apply_consistency_sweep(self, raw_grouped_inputs):
         """判定候选 source 之间的关系，并剔除不安全的词条。
 
@@ -393,7 +413,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             })
             terms.append({"source": source, "kind": "/".join(kinds)})
 
-        sweep = ConsistencySweep(engine)
+        sweep = ConsistencySweep(engine, settings=self._decision_settings())
         outcome = sweep.sweep_sources(terms)
         self._last_source_sweep = outcome
 
@@ -434,7 +454,9 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                 entries.append({"source": source, "translation": str(row.get("recommended_translation", "")).strip()})
                 rows[source] = row
 
-        result = ConsistencySweep(engine).sweep_translations(entries, outcome.subordinate)
+        result = ConsistencySweep(engine, settings=self._decision_settings()).sweep_translations(
+            entries, outcome.subordinate
+        )
         for short_source, long_source, probability in result.inconsistent:
             long_row = rows.get(long_source) or {}
             self.warning("术语一致性：{}（{}）与 {} 中的同名部分译法不一致（一致度 {:.0%}），建议统一后再翻译。".format(
@@ -534,7 +556,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
         import rapidjson as json
         
         fake_user = (
-            "请分析以下候选组并完成合并裁决，`recommended_translation` 必须写成简体中文。\n"
+            "请分析以下候选组并完成合并裁决；`recommended_translation` 与备注必须使用最后一条指令中声明的目标语言书写。\n"
             f"---\n{json.dumps(sample_group, ensure_ascii=False)}\n---\n"
             "请输出 JSON 合并结果。"
         )
