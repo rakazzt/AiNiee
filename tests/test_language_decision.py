@@ -15,10 +15,33 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
-from ModuleFolders.Infrastructure.DecisionEngine import DecisionEngine, Questions
-from ModuleFolders.Infrastructure.DecisionEngine.SystemOneClient import SystemOneClient
+# SystemOneClient is the MODULE here (the tests patch .urlrequest.urlopen on it);
+# Client is the class. Importing the class under the module's name breaks the patch.
+from ModuleFolders.Infrastructure.DecisionEngine import DecisionEngine, Questions, SystemOneClient
 from ModuleFolders.Infrastructure.DecisionEngine.SystemOneClient import SystemOneClient as Client
 from tests.test_decision_engine import FakeResponse, sent_body
+
+
+class TestHarnessIntegrity(unittest.TestCase):
+    """Deliberately NOT skipped, so the harness is checked wherever the suite runs.
+
+    The tests below skip when the reader stack is unavailable. That is honest, but it also
+    means a mistake in the patch target would go unseen locally and only surface in CI - which
+    is exactly what happened: SystemOneClient was imported as the class, so the patch raised
+    AttributeError, and every test here skipped locally and errored in CI. These assertions
+    run everywhere, so the target is verified even when the tests cannot run.
+    """
+
+    def test_the_urlopen_patch_target_is_the_module_not_the_class(self):
+        import types
+        self.assertIsInstance(SystemOneClient, types.ModuleType,
+                              "patch .urlrequest on the module, not the class")
+        self.assertTrue(hasattr(SystemOneClient, "urlrequest"))
+        self.assertTrue(callable(SystemOneClient.urlrequest.urlopen))
+
+    def test_the_client_factory_name_is_the_class(self):
+        self.assertIsInstance(Client, type)
+        self.assertTrue(hasattr(Client, "evaluate"))
 
 # Declared dependencies that are simply not installed in every environment.
 HEAVY_ROOTS = {
