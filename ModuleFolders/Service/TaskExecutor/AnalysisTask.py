@@ -83,6 +83,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                     self.config.rpm_limit,
                 )
             )
+            self._log_decision_layer()
 
             # 生成分析用文本片段：按 token 切分，确保每个分块都在模型处理能力范围内，同时保持文本的完整性和上下文连贯。
             self._emit_progress_update(
@@ -179,6 +180,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             self.info("开始汇总最终分析结果并写回缓存 ...")
             final_data = self._finalize_results(first_stage_results, second_stage_results)
             self._sweep_term_consistency(final_data)
+            self._log_decision_summary()
             if not getattr(self.config, "auto_extract_non_translate_switch", False):
                 final_data["non_translate"] = []
             self._emit_progress_update(
@@ -226,6 +228,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
 
         except Exception as error:
             self.error(f"分析任务执行失败: {error}", error)
+            self._log_decision_summary()  # 失败路径也要结账，否则已花费的调用无从查起
             Base.work_status = Base.STATUS.IDLE
             self.emit(Base.EVENT.ANALYSIS_TASK_DONE, {"status": "error", "analysis_data": None, "message": str(error)})
 
@@ -384,12 +387,40 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             self._decision_engine = DecisionEngine.from_config(self.load_config())
             self._decision_engine_resolved = True
             if self._decision_engine is None:
-                self.info("未配置决策模型，术语一致性巡检跳过（抽取行为与启用前一致）。")
+                self.info("未配置决策模型，术语一致性巡检跳过（抽取行为与启用前一致）。"
+                          "可在「接口管理 → 决策模型」添加 JEV 或 GPT-6 Luna Decisions。")
         return self._decision_engine
 
     def _decision_settings(self) -> dict:
         """本次巡检采用的决策层设置（提取提示词 → 决策设置）。缺省即内置默认。"""
         return DecisionSettings.get_selected(self.load_config())
+
+    def _log_decision_layer(self) -> None:
+        """把「本次是否使用决策模型、用的是哪一个」写进运行日志。
+
+        这一行是事后排查的锚点：只看日志就能分清「开关没开」「接口没配」和「配了但调用失败」，
+        而不是面对一段安静的日志去猜是哪一种。
+        """
+        if not getattr(self.config, "extract_consistency_sweep_switch", True):
+            self.info("决策模型：本次未使用（提取设置 → 术语一致性巡检 已关闭），抽取行为与启用前一致。")
+            return
+        engine = self._consistency_engine()
+        if engine is None:
+            return  # 未配置的原因已由 _consistency_engine 说明
+        self.info("决策模型：本次使用 {}（{}）→ {}".format(
+            engine.model or "(未填写模型)", engine.shape, engine.endpoint))
+
+    def _log_decision_summary(self) -> None:
+        """本次决策层的用量与失败明细；一次都没调用过就不出声。"""
+        engine = self._decision_engine
+        if engine is None or not engine.calls:
+            return
+        if engine.failures:
+            self.warning("决策模型本次存在失败调用（已按原逻辑回退，抽取结果不受影响）：\n" + engine.describe())
+            for line in engine.failure_lines():
+                self.warning(line)
+        else:
+            self.info(engine.describe())
 
     def _apply_consistency_sweep(self, raw_grouped_inputs):
         """判定候选 source 之间的关系，并剔除不安全的词条。

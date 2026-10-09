@@ -34,6 +34,31 @@ class LanguageChecker(ConfigMixin, LogMixin, Base):
         # 报告逻辑一行都不用改。
         self._decision_engine = DecisionEngine.from_config(self.config)
         self._use_decision_model = False
+        # Kept separate from _use_decision_model so the log can tell "the switch is off"
+        # from "the switch is on but there is nothing to call".
+        self._wants_decision_model = False
+
+    def _log_decision_layer(self) -> None:
+        """把「本次是否使用决策模型、用的是哪一个、结果如何」写进运行日志。
+
+        只看这一行就能分清「开关没开」「接口没配」和「配了但调用失败」——三者原本都只是安静。
+        """
+        if self._decision_engine is None:
+            # "Enabled but nothing configured" already warned in run_check; saying it twice
+            # is how a log becomes unreadable. Only the silent case needs a line here.
+            if not self._wants_decision_model:
+                self.info("决策模型：本次未使用（未配置决策接口，接口管理 → 决策模型）。语言判定使用本地检测器。")
+            return
+        if not self._use_decision_model:
+            self.info("决策模型：本次未使用（AI 判定开关未开启）。语言判定使用本地检测器。")
+            return
+        if self._decision_engine.failures:
+            self.warning("决策模型本次存在失败调用（失败批次已回退本地检测，结果不受影响）：\n"
+                         + self._decision_engine.describe())
+            for line in self._decision_engine.failure_lines():
+                self.warning(line)
+        else:
+            self.info(self._decision_engine.describe())
 
     def _build_error_type(self, detected_lang: str | None, target_lang: str | None = None) -> str:
         detected_lang = detected_lang or "unknown"
@@ -65,6 +90,7 @@ class LanguageChecker(ConfigMixin, LogMixin, Base):
 
         # AI 判定开关。用户开了开关但没配置决策模型时，退回本地检测器而不是静默什么都判不了。
         wants_decision_model = bool(params.get("use_decision_model", False))
+        self._wants_decision_model = wants_decision_model
         self._use_decision_model = wants_decision_model and self._decision_engine is not None
         if wants_decision_model and self._decision_engine is None:
             self.warning("已启用 AI 判定，但尚未配置决策模型（接口管理 → 决策模型），本次退回本地语言检测。")
@@ -255,14 +281,7 @@ class LanguageChecker(ConfigMixin, LogMixin, Base):
         finally:
             ReaderUtil.close_lang_detector()
         self.info("语言检查完成，耗时 {:.2f} 秒".format(time.time() - start_time))
-        if self._use_decision_model and self._decision_engine is not None:
-            summary = self._decision_engine.summary()
-            if summary["failures"]:
-                self.warning("决策模型调用 {} 次，失败 {} 次，已回退本地检测；最后错误：{}".format(
-                    summary["calls"], summary["failures"], summary["last_error"]))
-            else:
-                self.info("决策模型调用 {} 次，提问 {} 个，输入 {} Tokens，花费 {} USD".format(
-                    summary["calls"], summary["questions"], summary["input_tokens"], summary["cost"]))
+        self._log_decision_layer()
 
         # 如果在精准判断模式下发现了问题，则保存带有标记的缓存
         if is_judging and all_results:

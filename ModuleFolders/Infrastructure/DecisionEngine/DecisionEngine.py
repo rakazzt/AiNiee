@@ -22,6 +22,10 @@ from ModuleFolders.Infrastructure.DecisionEngine.SystemOneClient import Decision
 # request, so a long batch is split rather than silently truncated by the provider.
 MAX_STATE_CHARS = 12000
 
+# How many failed calls get described individually in the run log. Enough to show a
+# pattern, bounded so an outage cannot turn the log into a wall of identical lines.
+MAX_FAILURE_DETAIL = 20
+
 _SHAPE_ALIASES = {
     "systemone": SystemOneClient.SYSTEMONE,
     "system one": SystemOneClient.SYSTEMONE,
@@ -67,6 +71,9 @@ class DecisionEngine:
         self.output_tokens = 0
         self.cost = 0.0
         self.last_error = ""
+        # Per-failure detail, bounded. A count alone cannot be acted on months later;
+        # the HTTP status and the provider's own words can.
+        self.failure_detail: list = []
 
     @classmethod
     def from_platform(cls, platform: dict) -> "DecisionEngine":
@@ -184,10 +191,19 @@ class DecisionEngine:
         self.cost += usage.get("cost", 0.0)
 
     def _record_failure(self, purpose: str, error: Exception) -> None:
+        """Count a failure and keep enough about it to diagnose it later."""
         self.failures += 1
         self.last_error = str(error)
         if purpose:
             self.last_purpose = purpose
+        if len(self.failure_detail) < MAX_FAILURE_DETAIL:
+            self.failure_detail.append({
+                "purpose": purpose,
+                "kind": getattr(error, "kind", ""),
+                "status": getattr(error, "status", None),
+                "detail": getattr(error, "detail", ""),
+                "error": str(error),
+            })
 
     def summary(self) -> dict:
         """Counters for a log line. Cheap enough to print at the end of a job."""
@@ -199,4 +215,60 @@ class DecisionEngine:
             "output_tokens": self.output_tokens,
             "cost": round(self.cost, 6),
             "last_error": self.last_error,
+            "model": self.model,
+            "endpoint": self.endpoint,
+            "shape": self.shape,
+            "failure_detail": [dict(record) for record in self.failure_detail],
         }
+
+    # --- what the run log says ------------------------------------------------
+
+    @property
+    def model(self) -> str:
+        return getattr(self.client, "model", "")
+
+    @property
+    def endpoint(self) -> str:
+        return getattr(self.client, "endpoint", "")
+
+    @property
+    def shape(self) -> str:
+        return getattr(self.client, "shape", "")
+
+    def describe(self) -> str:
+        """Which decision model this is, and what it did — for the run log.
+
+        Printing this whether or not anything failed is the point: a silent fail-open and
+        a decision layer that was never used otherwise read exactly the same.
+        """
+        return (
+            "决策模型：{model}（{shape}）\n"
+            "接口地址：{endpoint}\n"
+            "调用 {calls} 次，提问 {questions} 个，失败 {failures} 次，"
+            "输入 {input_tokens} Tokens，输出 {output_tokens} Tokens，花费 {cost} USD"
+        ).format(
+            model=self.model or "(未填写模型)",
+            shape=self.shape or "unknown",
+            endpoint=self.endpoint or "(未解析)",
+            calls=self.calls,
+            questions=self.questions_asked,
+            failures=self.failures,
+            input_tokens=SystemOneClient.count_of(self.input_tokens),
+            output_tokens=SystemOneClient.count_of(self.output_tokens),
+            # Fixed notation: a log line reading 8.1e-05 is not a number anyone checks.
+            cost="{:.8f}".format(self.cost),
+        )
+
+    def failure_lines(self) -> list:
+        """One line per recorded failure, with its kind, HTTP status and provider words."""
+        lines = []
+        for record in self.failure_detail:
+            where = record["purpose"] or "未标注用途"
+            kind = record["kind"] or "unknown"
+            status = record["status"]
+            label = kind if status is None else "{}/HTTP {}".format(kind, status)
+            lines.append("决策模型调用失败（{}，{}）：{}".format(where, label, record["error"]))
+        hidden = self.failures - len(self.failure_detail)
+        if hidden > 0:
+            lines.append("（另有 {} 次失败未逐条记录，只计入总数）".format(hidden))
+        return lines

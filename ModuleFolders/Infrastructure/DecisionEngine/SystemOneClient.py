@@ -37,7 +37,18 @@ _PATH_SUFFIXES = {
 
 
 class DecisionError(RuntimeError):
-    """The decision endpoint could not be reached, or answered unusably."""
+    """The decision endpoint could not be reached, or answered unusably.
+
+    Carries what a log needs to still be useful months later: which kind of failure it
+    was, the HTTP status when there was one, and the provider's own words. A caller that
+    only prints str(error) still gets the old message.
+    """
+
+    def __init__(self, message, kind: str = "", status=None, detail: str = ""):
+        super().__init__(message)
+        self.kind = kind
+        self.status = status
+        self.detail = detail
 
 
 def build_endpoint(shape: str, base_url: str, account_id: str = "") -> str:
@@ -54,13 +65,14 @@ def build_endpoint(shape: str, base_url: str, account_id: str = "") -> str:
         return base
     if shape not in SHAPES:
         raise DecisionError(
-            "unknown provider shape {!r}; expected one of {}".format(shape, ", ".join(SHAPES))
+            "unknown provider shape {!r}; expected one of {}".format(shape, ", ".join(SHAPES)),
+            kind="config",
         )
 
     if shape == CLOUDFLARE:
         account_id = (account_id or "").strip()
         if not account_id:
-            raise DecisionError("the cloudflare shape needs an account id")
+            raise DecisionError("the cloudflare shape needs an account id", kind="config")
         return "{}/{}/ai/run/@cf/cloudflare/clef".format(CLOUDFLARE_API_ROOT, account_id)
 
     suffix = _PATH_SUFFIXES[shape]
@@ -89,7 +101,8 @@ class SystemOneClient:
             raise DecisionError(
                 "the cloudflare shape accepts only {}; got {!r}".format(
                     " or ".join(CLOUDFLARE_MODELS), self.model
-                )
+                ),
+                kind="config",
             )
 
     @property
@@ -105,9 +118,9 @@ class SystemOneClient:
         from ModuleFolders.Infrastructure.DecisionEngine import Questions
         Questions.validate(questions)
         if not self.api_key:
-            raise DecisionError("no API key configured for the decision model")
+            raise DecisionError("no API key configured for the decision model", kind="config")
         if not self.model:
-            raise DecisionError("no model configured for the decision model")
+            raise DecisionError("no model configured for the decision model", kind="config")
 
         payload = {"model": self.model, "state": state, "questions": questions}
         body = _post_json(
@@ -122,7 +135,7 @@ class SystemOneClient:
         )
         answers = body.get("answers")
         if not isinstance(answers, dict):
-            raise DecisionError("decision response has no answers map")
+            raise DecisionError("decision response has no answers map", kind="shape")
         return body
 
 
@@ -139,15 +152,25 @@ def _post_json(url: str, headers: dict, payload: dict, timeout: float) -> dict:
             detail = error.read().decode("utf-8", "replace")[:400]
         except Exception:
             pass
-        raise DecisionError("decision endpoint returned HTTP {}: {}".format(error.code, detail))
+        raise DecisionError(
+            "decision endpoint returned HTTP {}: {}".format(error.code, detail),
+            kind="http", status=error.code, detail=detail,
+        )
     except (urlerror.URLError, OSError, ValueError) as error:
-        raise DecisionError("decision request failed: {}".format(error))
+        # A timeout, a refused connection, a DNS failure: no HTTP status exists here, which
+        # is exactly what tells a reader the request never got an answer.
+        raise DecisionError("decision request failed: {}".format(error), kind="transport")
     try:
         body = json.loads(raw.decode("utf-8"))
     except (ValueError, UnicodeDecodeError) as error:
-        raise DecisionError("decision endpoint returned invalid JSON: {}".format(error))
+        raise DecisionError(
+            "decision endpoint returned invalid JSON: {}".format(error), kind="shape"
+        )
     if not isinstance(body, dict):
-        raise DecisionError("decision endpoint returned {}, expected an object".format(type(body).__name__))
+        raise DecisionError(
+            "decision endpoint returned {}, expected an object".format(type(body).__name__),
+            kind="shape",
+        )
     return body
 
 
@@ -156,6 +179,13 @@ def _number(value):
         return None
     value = float(value)
     return None if value != value else value
+
+
+def count_of(value):
+    """A token count as a count: usage_of() normalises every number to float."""
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
 
 
 def usage_of(body: dict) -> dict:

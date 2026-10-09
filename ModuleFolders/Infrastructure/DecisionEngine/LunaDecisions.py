@@ -343,13 +343,6 @@ class Answer:
         return "Answer(type={!r}, {})".format(self.type, self.describe())
 
 
-def _count(value):
-    """usage_of() normalises numbers to float; a token count reads better as an int."""
-    if isinstance(value, float) and value.is_integer():
-        return int(value)
-    return value
-
-
 def _confidence_suffix(confidence):
     return "" if confidence is None else " (confidence {:.2f})".format(confidence)
 
@@ -378,7 +371,8 @@ class Decision:
 
     def usage_line(self):
         text = "{} input tokens, {} output tokens".format(
-            _count(self.usage.get("input_tokens", 0)), _count(self.usage.get("output_tokens", 0))
+            SystemOneClient.count_of(self.usage.get("input_tokens", 0)),
+            SystemOneClient.count_of(self.usage.get("output_tokens", 0)),
         )
         cost = self.usage.get("cost")
         if cost is not None:
