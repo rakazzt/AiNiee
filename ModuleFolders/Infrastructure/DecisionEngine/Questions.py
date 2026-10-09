@@ -193,6 +193,22 @@ def choice_probabilities(answers, qid):
     return cleaned or None
 
 
+def score_probabilities(answers, qid):
+    """Every level index mapped to its probability, or None if unavailable."""
+    answer = _answer(answers, qid)
+    if answer is None or answer.get("type") != SCORE:
+        return None
+    probabilities = answer.get("probabilities")
+    if not isinstance(probabilities, dict):
+        return None
+    cleaned = {}
+    for index, value in probabilities.items():
+        probability = _probability(value)
+        if probability is not None:
+            cleaned[index] = probability
+    return cleaned or None
+
+
 def score_value(answers, qid):
     """Probability-weighted position on the scale (0 = first level), or None."""
     answer = _answer(answers, qid)

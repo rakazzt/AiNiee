@@ -521,6 +521,44 @@
                 "model",
                 "rpm_limit"
             ]
+        },
+        "luna_decisions": {
+            "tag": "luna_decisions",
+            "profile": "default",
+            "group": "decision",
+            "name": "GPT-6 Luna Decisions（OpenRouter）",
+            "docs": {
+                "api_key_url": "https://openrouter.ai/settings/keys",
+                "docs_url": "https://openrouter.ai/docs/guides/community/multimodal-decisions",
+                "models_url": "https://openrouter.ai/openai/gpt-6-luna-decisions",
+                "notes": {
+                    "简中": "OpenRouter 决策路由（/api/alpha/decisions）上的 OpenAI 决策模型：只回答类型化问题（predicate / choice / score）并给出概率，不生成文本，因此不能用作翻译接口；输入还可携带 base64 图片。",
+                    "English": "OpenAI's decision model on the OpenRouter decisions router (/api/alpha/decisions): it answers typed questions (predicate / choice / score) with probabilities and never generates text, so it cannot be used as a translation interface. Its evidence may also carry inline base64 images."
+                }
+            },
+            "api_url": "https://openrouter.ai/api",
+            "api_key": "",
+            "api_format": "decisions",
+            "icon": "custom",
+            "rpm_limit": 4096,
+            "model": "openai/gpt-6-luna-decisions",
+            "temperature": 1.0,
+            "tls_switch": false,
+            "think_switch": false,
+            "think_depth": "low",
+            "thinking_level": "high",
+            "auto_complete": false,
+            "model_datas": [
+                "openai/gpt-6-luna-decisions"
+            ],
+            "extra_body": {},
+            "options": [],
+            "key_in_settings": [
+                "api_url",
+                "api_key",
+                "model",
+                "rpm_limit"
+            ]
         }
     }
 }

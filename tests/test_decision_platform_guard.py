@@ -9,6 +9,9 @@ import json
 import unittest
 from pathlib import Path
 
+from ModuleFolders.Infrastructure.DecisionEngine import SystemOneClient
+from ModuleFolders.Infrastructure.DecisionEngine.DecisionEngine import resolve_shape
+
 PRESET_PATH = Path(__file__).parents[1] / "Resource" / "platforms" / "preset.json"
 
 HEAVY_ROOTS = {
@@ -40,7 +43,10 @@ class TestPresetData(unittest.TestCase):
         decision = {tag: p for tag, p in self.platforms.items() if p.get("group") == "decision"}
         self.assertIn("jev", decision, "the TypeSafe entry is the primary one")
         for tag, platform in decision.items():
-            self.assertEqual(platform.get("api_format"), "SystemOne", tag)
+            # The declared format must resolve to a real wire shape, not merely be a
+            # string: "SystemOne" is the TypeSafe route, "decisions" the OpenRouter
+            # decisions router. An unresolvable value would silently fall back.
+            self.assertIn(resolve_shape(platform.get("api_format")), SystemOneClient.SHAPES, tag)
             self.assertTrue(platform.get("api_key") == "", "no key must be shipped")
             self.assertIn("api_url", platform.get("key_in_settings", []), tag)
 
