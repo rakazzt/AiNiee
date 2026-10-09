@@ -5,6 +5,8 @@ from ModuleFolders.Infrastructure.LLMRequester.AnthropicRequester import Anthrop
 from ModuleFolders.Infrastructure.LLMRequester.AmazonbedrockRequester import AmazonbedrockRequester
 from ModuleFolders.Infrastructure.LLMRequester.OpenaiRequester import OpenaiRequester
 
+from ModuleFolders.Infrastructure.DecisionEngine.DecisionEngine import is_decision_format
+
 def is_decision_platform(platform_config: dict) -> bool:
     """该接口是否为决策模型（System One / JEV）。
 
@@ -14,7 +16,13 @@ def is_decision_platform(platform_config: dict) -> bool:
     """
     if not isinstance(platform_config, dict):
         return False
-    return platform_config.get("group") == "decision" or platform_config.get("api_format") == "SystemOne"
+    # The format check is the fallback for callers that hand over a stripped config with no
+    # group (the interface test used to). It has to know every decision format: knowing only
+    # "SystemOne" sent a "decisions" platform into the chat branch, which is a 404 for a
+    # model that never generates text.
+    return platform_config.get("group") == "decision" or is_decision_format(
+        platform_config.get("api_format")
+    )
 
 
 # 接口请求器

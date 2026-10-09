@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from ModuleFolders.Base.Base import Base
 from ModuleFolders.Config.Config import ConfigMixin
 from ModuleFolders.Log.Log import LogMixin
-from ModuleFolders.Infrastructure.LLMRequester.LLMRequester import LLMRequester
+from ModuleFolders.Infrastructure.LLMRequester.LLMRequester import LLMRequester, is_decision_platform
 from ModuleFolders.Infrastructure.TaskConfig.TaskConfig import TaskConfig
 from ModuleFolders.Service.TaskExecutor.TranslatorUtil import get_source_language_for_file
 from ModuleFolders.Domain.ResponseExtractor.ResponseExtractor import ResponseExtractor
@@ -44,6 +44,36 @@ class SimpleExecutor(ConfigMixin, LogMixin, Base):
                 self.emit(Base.EVENT.API_TEST_DONE, {"failure": "任务执行异常", "success": ""})
         thread = threading.Thread(target = safe_target)
         thread.start()
+
+    # 决策模型接口测试：用一次真实判定代替聊天请求
+    def _test_decision_platform(self, platform: dict, api_key: str) -> tuple:
+        """验证决策接口是否可用，返回 (是否成功, 说明)。
+
+        走的是语言检查 / 术语巡检完全相同的那条路径，所以测通就等于那条路径能通。
+        """
+        from ModuleFolders.Infrastructure.DecisionEngine import DecisionEngine, Questions
+        from ModuleFolders.Infrastructure.DecisionEngine.SystemOneClient import DecisionError
+        try:
+            engine = DecisionEngine.DecisionEngine.from_platform(dict(platform, api_key=api_key))
+        except DecisionError as error:
+            return False, f"决策接口配置有误：{error}"
+
+        answers = engine.ask(
+            {"probe": "接口连通性测试"},
+            {"reachable": Questions.noul("这段内容是否被成功接收？")},
+            purpose="接口测试",
+        )
+        if answers is None:
+            # A missing key or model is a setup mistake, not an outage; say which, because
+            # the two need completely different actions from the user.
+            kind = engine.failure_detail[-1]["kind"] if engine.failure_detail else ""
+            label = "决策接口配置有误" if kind == "config" else "决策接口调用失败"
+            return False, f"{label}：{engine.last_error}"
+
+        probability = Questions.noul_probability(answers, "reachable")
+        detail = engine.describe().replace("\n", "；")
+        detail += "；连通性判定未返回可用数值" if probability is None else f"；连通性判定 {probability:.2f}"
+        return True, detail
 
     # 接口测试
     def api_test(self, event, data: dict):
@@ -121,6 +151,22 @@ class SimpleExecutor(ConfigMixin, LogMixin, Base):
             self.info(f"tls_switch - {data.get('tls_switch', False)}")
             if extra_body:
                 self.info(f"额外参数 - {extra_body}")
+            # 决策模型（JEV / GPT-6 Luna Decisions）只回答类型化问题，聊天请求对它必然是
+            # 404。与其让用户看到一个看不懂的 404，不如用一次真实的判定请求来验证接口。
+            if is_decision_platform(data):
+                ok, detail = self._test_decision_platform(data, api_key)
+                if ok:
+                    self.info("接口测试成功 ...")
+                    self.info(f"接口返回信息 - {detail}")
+                    success.append(api_key)
+                else:
+                    self.error("接口测试失败 ...")
+                    self.error(detail)
+                    failure.append(api_key)
+                self.print("")
+                continue
+
+            # 只有聊天接口会用到这段测试用对话；决策模型走的是类型化问题，打印它只会误导。
             self.print(f"系统提示词 - {system_prompt}")
             self.print(f"信息内容 - {messages}")
 

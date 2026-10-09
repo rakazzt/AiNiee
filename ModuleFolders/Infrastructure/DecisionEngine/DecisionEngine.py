@@ -59,6 +59,15 @@ def resolve_shape(api_format: str) -> str:
     return _SHAPE_ALIASES.get(str(api_format or "").strip().lower(), SystemOneClient.SYSTEMONE)
 
 
+def is_decision_format(api_format) -> bool:
+    """True when a declared api_format names a decision wire rather than a chat one.
+
+    Reads the same table as resolve_shape on purpose: a new decision format must not be
+    routable while the guard that keeps it out of the chat requesters has never heard of it.
+    """
+    return str(api_format or "").strip().lower() in _SHAPE_ALIASES
+
+
 class DecisionEngine:
     """A configured decision endpoint plus the counters needed to account for it."""
 

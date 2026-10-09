@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from ModuleFolders.Infrastructure.DecisionEngine import SystemOneClient
-from ModuleFolders.Infrastructure.DecisionEngine.DecisionEngine import resolve_shape
+from ModuleFolders.Infrastructure.DecisionEngine.DecisionEngine import is_decision_format, resolve_shape
 
 PRESET_PATH = Path(__file__).parents[1] / "Resource" / "platforms" / "preset.json"
 
@@ -50,6 +50,26 @@ class TestPresetData(unittest.TestCase):
             self.assertTrue(platform.get("api_key") == "", "no key must be shipped")
             self.assertIn("api_url", platform.get("key_in_settings", []), tag)
 
+    def test_every_decision_format_is_recognised_on_its_own(self):
+        """The declared format is the fallback signal for callers that hand over a config
+        with no group - the interface test did exactly that. Knowing only "SystemOne" left
+        a "decisions" platform unrecognised, so it went to the chat requesters, which answer
+        a model that never generates text with a 404."""
+        formats = {
+            platform.get("api_format")
+            for platform in self.platforms.values()
+            if platform.get("group") == "decision"
+        }
+        self.assertTrue(formats, "no decision platforms to check")
+        for api_format in sorted(formats):
+            with self.subTest(api_format=api_format):
+                self.assertTrue(is_decision_format(api_format))
+
+    def test_chat_formats_are_not_mistaken_for_decision_formats(self):
+        for api_format in ("OpenAI", "Anthropic", "Google", "openai", "", None):
+            with self.subTest(api_format=api_format):
+                self.assertFalse(is_decision_format(api_format))
+
     def test_decision_platforms_are_not_offered_as_translation_platforms(self):
         """AddAPIDialog renders only local/online/custom, so any other group is excluded."""
         groups = {"local", "online", "custom"}
@@ -63,6 +83,12 @@ class TestGuard(unittest.TestCase):
     def test_recognises_both_markers(self):
         self.assertTrue(is_decision_platform({"group": "decision"}))
         self.assertTrue(is_decision_platform({"api_format": "SystemOne"}))
+
+    def test_recognises_a_decision_format_with_no_group(self):
+        """A stripped config still has to be refused by the chat requesters."""
+        self.assertTrue(is_decision_platform({"api_format": "decisions"}))
+        self.assertFalse(is_decision_platform({"api_format": "OpenAI"}))
+        self.assertFalse(is_decision_platform({}))
 
     def test_leaves_ordinary_platforms_alone(self):
         for platform in ({"group": "online", "api_format": "OpenAI"},
