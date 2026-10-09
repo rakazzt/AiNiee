@@ -281,15 +281,17 @@ class TestLanguageCheckerLogging(unittest.TestCase):
     def make_checker(self, engine, use=True, wants=None):
         checker = LanguageChecker.__new__(LanguageChecker)
         checker._decision_engine = engine
-        checker._use_decision_model = use
-        checker._wants_decision_model = use if wants is None else wants
+        # Mirrors the real invariant from run_check: without an engine the layer can never
+        # be in use, and "wanted" records what the user asked for whatever the outcome.
+        checker._use_decision_model = use and engine is not None
+        checker._wants_decision_model = bool(use) if wants is None else wants
         checker.logs = []
         checker.info = checker.logs.append
         checker.warning = checker.logs.append
         return checker
 
     def test_an_unconfigured_checker_says_so_once(self):
-        checker = self.make_checker(None)
+        checker = self.make_checker(None, use=False)
         checker._log_decision_layer()
         self.assertEqual(len(checker.logs), 1)
         self.assertIn("未使用", checker.logs[0])
@@ -297,7 +299,7 @@ class TestLanguageCheckerLogging(unittest.TestCase):
 
     def test_wanted_but_unconfigured_is_not_said_twice(self):
         """run_check already warns in that case; this must not repeat the same sentence."""
-        checker = self.make_checker(None, wants=True)
+        checker = self.make_checker(None, use=False, wants=True)
         checker._log_decision_layer()
         self.assertEqual(checker.logs, [])
 
