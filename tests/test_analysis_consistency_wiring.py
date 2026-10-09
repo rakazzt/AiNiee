@@ -63,6 +63,58 @@ def raw_inputs(*sources):
 
 
 @unittest.skipUnless(AnalysisTask is not None, SKIP_REASON)
+class TestEngineResolution(unittest.TestCase):
+    """The path where the engine is resolved from config, not handed in.
+
+    Every other test here pre-sets _decision_engine_resolved, which is exactly the state
+    that skips the resolution code - so a broken call there stayed invisible while the
+    extraction crashed for a user. DecisionEngine is imported as a module and from_config
+    is a classmethod on the class inside it; the two are easy to confuse and one of them
+    raises AttributeError.
+    """
+
+    DECISION_CONFIG = {
+        "platforms": {
+            "luna_decisions_482913": {
+                "group": "decision",
+                "api_format": "decisions",
+                "api_url": "https://openrouter.ai/api",
+                "api_key": "k",
+                "model": "openai/gpt-6-luna-decisions",
+            }
+        }
+    }
+
+    def make_task(self, config, sweep_switch=True):
+        task = AnalysisTask.__new__(AnalysisTask)
+        task.config = SimpleNamespace(extract_consistency_sweep_switch=sweep_switch)
+        task._decision_engine = None
+        task._decision_engine_resolved = False
+        task._last_source_sweep = None
+        task.logs = []
+        task.info = task.logs.append
+        task.warning = task.logs.append
+        task.load_config = lambda: config
+        return task
+
+    def test_resolves_a_configured_decision_platform_from_config(self):
+        engine = self.make_task(self.DECISION_CONFIG)._consistency_engine()
+        self.assertIsNotNone(engine)
+        self.assertEqual(engine.endpoint, "https://openrouter.ai/api/alpha/decisions")
+        self.assertEqual(engine.model, "openai/gpt-6-luna-decisions")
+
+    def test_reports_that_nothing_is_configured_rather_than_raising(self):
+        task = self.make_task({"platforms": {}})
+        self.assertIsNone(task._consistency_engine())
+        self.assertTrue(any("未配置决策模型" in line for line in task.logs))
+
+    def test_a_closed_switch_never_resolves_the_engine(self):
+        task = self.make_task(self.DECISION_CONFIG, sweep_switch=False)
+        self.assertIsNone(task._consistency_engine())
+        self.assertFalse(task._decision_engine_resolved)
+
+
+@unittest.skipUnless(AnalysisTask is not None, SKIP_REASON)
 class TestApplyConsistencySweep(unittest.TestCase):
     def apply(self, task, raw, **kwargs):
         with mock.patch.object(SystemOneClient.urlrequest, "urlopen",

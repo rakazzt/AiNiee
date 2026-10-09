@@ -32,7 +32,8 @@ class LanguageChecker(ConfigMixin, LogMixin, Base):
         # AI 决策层（System One / JEV）。未配置决策模型时为 None，检查器照旧使用本地检测器。
         # 决策层只负责「判断」，检测结果的结构与本地检测器完全一致，因此下游分块统计/标记/
         # 报告逻辑一行都不用改。
-        self._decision_engine = DecisionEngine.from_config(self.config)
+        # 同 AnalysisTask：模块与类同名，模块上并没有 from_config。
+        self._decision_engine = DecisionEngine.DecisionEngine.from_config(self.config)
         self._use_decision_model = False
         # Kept separate from _use_decision_model so the log can tell "the switch is off"
         # from "the switch is on but there is nothing to call".

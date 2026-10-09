@@ -384,7 +384,9 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
         if not getattr(self.config, "extract_consistency_sweep_switch", True):
             return None
         if not self._decision_engine_resolved:
-            self._decision_engine = DecisionEngine.from_config(self.load_config())
+            # from_config 是 DecisionEngine 类的方法，而模块同名：写成 DecisionEngine.from_config()
+            # 会得到 AttributeError，且只有「尚未解析过引擎」这条路径才会走到。
+            self._decision_engine = DecisionEngine.DecisionEngine.from_config(self.load_config())
             self._decision_engine_resolved = True
             if self._decision_engine is None:
                 self.info("未配置决策模型，术语一致性巡检跳过（抽取行为与启用前一致）。"

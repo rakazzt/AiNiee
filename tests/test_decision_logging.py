@@ -319,5 +319,43 @@ class TestLanguageCheckerLogging(unittest.TestCase):
         self.assertIn(MODEL, checker.logs[0])
 
 
+@unittest.skipUnless(LanguageChecker is not None, CHECKER_SKIP)
+class TestCheckerResolution(unittest.TestCase):
+    """LanguageChecker resolves its engine in __init__ - the other site of the same bug.
+
+    from_config is a classmethod on DecisionEngine the class, while the module carries the
+    same name, so the bare module lookup raised AttributeError the moment the checker was
+    constructed. Nothing covered it: every other test here builds a checker with __new__,
+    which skips __init__ entirely.
+    """
+
+    CONFIG = {
+        "platforms": {
+            "luna_decisions_482913": {
+                "group": "decision",
+                "api_format": "decisions",
+                "api_url": "https://openrouter.ai/api",
+                "api_key": "k",
+                "model": "openai/gpt-6-luna-decisions",
+            }
+        }
+    }
+
+    def make_checker(self, config):
+        with mock.patch.object(LanguageChecker, "load_config", return_value=config):
+            return LanguageChecker(cache_manager=None)
+
+    def test_construction_resolves_the_decision_engine(self):
+        checker = self.make_checker(dict(self.CONFIG))
+        self.assertIsNotNone(checker._decision_engine)
+        self.assertEqual(checker._decision_engine.endpoint,
+                         "https://openrouter.ai/api/alpha/decisions")
+
+    def test_construction_without_a_decision_platform_is_fine(self):
+        checker = self.make_checker({"platforms": {}})
+        self.assertIsNone(checker._decision_engine)
+        self.assertFalse(checker._use_decision_model)
+
+
 if __name__ == "__main__":
     unittest.main()
