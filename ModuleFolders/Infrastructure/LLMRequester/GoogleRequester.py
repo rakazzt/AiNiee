@@ -104,7 +104,7 @@ class GoogleRequester(LogMixin, Base):
         except Exception as e:
             if Base.work_status == Base.STATUS.STOPING:
                 return True, None, None, None, None
-            self.error(f"请求任务错误 ... {e}", e)
+            self.error_repeat(f"请求任务错误 ... {e}", e)
             return True, None, None, None, None
 
         # 获取指令消耗

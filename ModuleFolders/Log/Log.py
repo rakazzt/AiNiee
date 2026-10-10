@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.markup import escape
 from rich.text import Text
 
+from ModuleFolders.Log import ErrorLedger
 from ModuleFolders.Log import LogSystem as _log_system
 from ModuleFolders.Log.LogSystem import redact
 
@@ -211,6 +212,20 @@ class LogMixin:
                 f"{_console_text(safe_tb)}"
             )
             self._logger().error(text, exc_info=error, extra=_log_extra(gui_text, gui_style, gui_rows))
+
+    def error_repeat(self, msg, error: Exception = None) -> int:
+        """Log an error whose exact repeats add nothing, and return its running count.
+
+        Provider outages produce one message hundreds of times; the first occurrence keeps
+        its full traceback, the rest are counted, and the count travels with the message so
+        the frequency stays visible without drowning the log.
+        """
+        count = ErrorLedger.record(error, msg)
+        if count == 1:
+            self.error(msg, error)
+        elif ErrorLedger.should_surface(count):
+            self.warning("{}（同一错误已重复 {} 次，后续重复不再逐条打印）".format(msg, count))
+        return count
 
     def warning(self, msg) -> None:
         console_value, text, gui_text, gui_style, gui_rows = _prepare_message(msg)

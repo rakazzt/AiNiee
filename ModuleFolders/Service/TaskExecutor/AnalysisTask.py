@@ -1,5 +1,6 @@
 import concurrent.futures
 import re
+import time
 from datetime import datetime
 
 import rapidjson as json
@@ -7,6 +8,7 @@ import rapidjson as json
 from ModuleFolders.Base.Base import Base
 from ModuleFolders.Config.Config import ConfigMixin
 from ModuleFolders.Domain.PromptBuilder.PromptBuilderExtraction import PromptBuilderExtraction
+from ModuleFolders.Log import ErrorLedger
 from ModuleFolders.Log.Log import LogMixin
 from ModuleFolders.Infrastructure.DecisionEngine import DecisionEngine, DecisionSettings
 from ModuleFolders.Infrastructure.DecisionEngine.ConsistencySweep import ConsistencySweep, group_sources
@@ -83,6 +85,8 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                     self.config.rpm_limit,
                 )
             )
+            self._log_interface()
+            ErrorLedger.reset()  # 本次运行的错误从零开始统计
             self._log_decision_layer()
 
             # 生成分析用文本片段：按 token 切分，确保每个分块都在模型处理能力范围内，同时保持文本的完整性和上下文连贯。
@@ -107,6 +111,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                 self.tra("开始执行第一阶段分析任务..."),
                 self.tra("共 {0} 个分块。").format(len(chunks)),
             )
+            stage1_started = time.time()
             self.info(f"开始执行第一阶段提取，共 {len(chunks)} 个分块。")
             first_stage_results = []
             executor_stage1 = concurrent.futures.ThreadPoolExecutor(max_workers=self.config.actual_thread_counts, thread_name_prefix="analysis_stage1")
@@ -129,7 +134,8 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                 self._clear_active_executor(executor_stage1)
 
             if Base.work_status == Base.STATUS.STOPING: return self._handle_stop()
-            self.info(f"第一阶段提取完成，成功收集 {len(first_stage_results)} 个分块结果。")
+            self.info("第一阶段提取完成，成功收集 {} 个分块结果，耗时 {:.0f} 秒。".format(
+                len(first_stage_results), time.time() - stage1_started))
 
             # --- [第二阶段] ---
             reduction_batches = self._prepare_reduction_batches(first_stage_results) # 准备第二阶段的批次：将第一阶段的结果按 source 聚合，短词挂靠长词，形成待裁决的候选组。
@@ -141,6 +147,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                 self.tra("开始执行第二阶段分析任务..."),
                 self.tra("共 {0} 个合并批次。").format(len(reduction_batches)),
             )
+            stage2_started = time.time()
             self.info(f"开始执行第二阶段合并，共 {len(reduction_batches)} 个批次。")
             second_stage_results = []
             if reduction_batches:
@@ -162,7 +169,8 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                 finally:
                     executor_stage2.shutdown(wait=True, cancel_futures=Base.work_status == Base.STATUS.STOPING)
                     self._clear_active_executor(executor_stage2)
-                self.info(f"第二阶段合并完成，成功收集 {len(second_stage_results)} 个批次结果。")
+                self.info("第二阶段合并完成，成功收集 {} 个批次结果，耗时 {:.0f} 秒。".format(
+                    len(second_stage_results), time.time() - stage2_started))
             else:
                 self.info("第二阶段没有可合并候选，已跳过 AI 裁决。")
 
@@ -181,6 +189,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             final_data = self._finalize_results(first_stage_results, second_stage_results)
             self._sweep_term_consistency(final_data)
             self._log_decision_summary()
+            self._log_error_summary()
             if not getattr(self.config, "auto_extract_non_translate_switch", False):
                 final_data["non_translate"] = []
             self._emit_progress_update(
@@ -229,6 +238,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
         except Exception as error:
             self.error(f"分析任务执行失败: {error}", error)
             self._log_decision_summary()  # 失败路径也要结账，否则已花费的调用无从查起
+            self._log_error_summary()
             Base.work_status = Base.STATUS.IDLE
             self.emit(Base.EVENT.ANALYSIS_TASK_DONE, {"status": "error", "analysis_data": None, "message": str(error)})
 
@@ -411,6 +421,35 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             return  # 未配置的原因已由 _consistency_engine 说明
         self.info("决策模型：本次使用 {}（{}）→ {}".format(
             engine.model or "(未填写模型)", engine.shape, engine.endpoint))
+
+    def _log_interface(self) -> None:
+        """写出本次分析实际使用的是哪个接口。
+
+        日志原本只记模型名，出问题时分不清是哪一个中转站：同一个模型名在不同 api_url
+        上的表现可以完全不同，而这两者需要的处理方式也不同。
+        """
+        platforms = getattr(self.config, "platforms", None) or {}
+        tag = getattr(self.config, "target_platform", "") or ""
+        platform = platforms.get(tag, {}) or {}
+        self.info("分析接口: 名称 - {0}, 地址 - {1}, 格式 - {2}".format(
+            platform.get("name") or tag or "(未知)",
+            platform.get("api_url") or "(默认)",
+            platform.get("api_format") or "(未声明)",
+        ))
+
+    def _log_error_summary(self) -> None:
+        """本次运行里被折叠掉的请求错误；一次都没有就不出声。
+
+        供应商抖动会把同一条错误重复几百次，逐条打印堆栈会把真正有用的那几行埋掉，
+        所以重复项折叠成计数，这里只汇报总量与分布。
+        """
+        summary = ErrorLedger.summary()
+        if not summary["total"]:
+            return
+        self.warning("本次分析共发生 {} 次请求错误（重复项已折叠，首次出现时已打印完整堆栈）：".format(
+            summary["total"]))
+        for group in summary["groups"]:
+            self.warning("  ×{}  {}".format(group["count"], group["signature"]))
 
     def _log_decision_summary(self) -> None:
         """本次决策层的用量与失败明细；一次都没调用过就不出声。"""
