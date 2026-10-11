@@ -164,6 +164,25 @@ class TestSaveConfigRecords(unittest.TestCase):
         saver.save_config(json.loads(json.dumps(config)))
         self.assertEqual(saver.logged, [])
 
+    def test_a_partial_save_does_not_report_untouched_keys_as_removed(self):
+        """save_config merges, so a save carrying one field must not look like a purge.
+
+        Seen in the field: an unrelated startup save produced eleven bogus "删除接口"
+        lines and "接口绑定 active: ... → None", which reads as data loss and would
+        destroy trust in every other line this feature writes.
+        """
+        self.write({"platforms": {"p1": platform("Guts"), "p2": platform("Other")},
+                    "api_settings": {"active": "p1"}, "label_input_path": "old"})
+        saver = self.Saver()
+        saver.save_config({"label_input_path": "new"})
+        joined = "\n".join(saver.logged)
+        self.assertNotIn("删除接口", joined)
+        self.assertNotIn("接口绑定", joined)
+        with open(self.path, encoding="utf-8") as reader:
+            saved = json.load(reader)
+        self.assertEqual(len(saved["platforms"]), 2)
+        self.assertEqual(saved["label_input_path"], "new")
+
     def test_a_broken_logger_cannot_break_saving(self):
         self.write({"platforms": {"p1": platform("Guts", temperature=1.05)}})
 

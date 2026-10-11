@@ -1,3 +1,4 @@
+import logging
 import os
 import threading
 import traceback
@@ -184,15 +185,20 @@ class ConfigMixin:
             if old == new:
                 return old
 
+            # save_config 是「合并」而非「替换」：new 里没出现的顶层键保持原值。
+            # 因此必须和合并后的结果比较——拿 new 当完整状态，会把一次只保存一个
+            # 字段的调用报成「其余接口全部删除」，正是这行日志要消灭的那种假警报。
+            merged = dict(old)
+            merged.update(new)
+
             # 改动必须留痕：哪次改了什么，是排查「昨天还好、今天就不行」的唯一线索。
             # 日志失败绝不能让保存失败，所以整段包在 try 里。
             try:
-                changes = ConfigChangeLog.describe(old, new)
+                changes = ConfigChangeLog.describe(old, merged)
             except Exception:
                 changes = []
 
-            for key, value in new.items():
-                old[key] = value
+            old = merged
 
             os.makedirs(os.path.dirname(ConfigMixin.CONFIG_PATH), exist_ok=True)
             tmp_path = f"{ConfigMixin.CONFIG_PATH}.tmp"
@@ -210,7 +216,9 @@ class ConfigMixin:
                     if callable(emit):
                         emit(message)
                     else:
-                        print("[[yellow]{}[/]]".format(message))
+                        # 没有 LogMixin 的调用方也要走同一条日志管线，否则同一件事
+                        # 有的带 [INFO] 有的不带，看起来像两个来源。
+                        logging.getLogger("AiNiee.config").info(message)
             except Exception:
                 pass
 
