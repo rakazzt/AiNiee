@@ -35,6 +35,9 @@ from ModuleFolders.Infrastructure.LLMRequester.OptionSchema import (
     validate_descriptor,
     validate_schema,
 )
+from ModuleFolders.Infrastructure.LLMRequester.ThinkingProfiles import PROFILES as THINKING_PROFILES
+from ModuleFolders.Infrastructure.LLMRequester.ThinkingProfiles import PROFILE_ORDER
+from ModuleFolders.Infrastructure.LLMRequester.ThinkingProfiles import resolve_profile_name
 from ModuleFolders.Infrastructure.LLMRequester.ProviderDocs import (
     doc_links,
     doc_notes,
@@ -122,6 +125,12 @@ class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, ToastMixin, Base):
             and api_format in ["OpenAI", "Anthropic"]
         ):
             self.add_widget_think_depth(self.vbox, config)
+
+        # profile - 思考参数用哪种方言。未识别的中转站只能猜（default：原样发送
+        # reasoning_effort），猜错的表现是网关直接返回 503；而恰恰是这些自定义接口最
+        # 需要明确选择。导入的旧配置 key_in_settings 里没有该字段，所以按平台族显示。
+        if "profile" in settings or platform.get("group") == "custom":
+            self.add_widget_profile(self.vbox, config)
 
         # Google 格式的思考参数配置 - 根据模型版本互斥显示
         if api_format == "Google":
@@ -226,6 +235,40 @@ class ArgsEditPage(MessageBoxBase, ConfigMixin, LogMixin, ToastMixin, Base):
             ComboBoxCard(
                 self.tra("思考强度"),
                 self.tra("调整模型的思考强度等级"),
+                [],
+                init = init,
+                current_text_changed = current_text_changed,
+            )
+        )
+
+    # 思考参数方言。各 provider 的写法并不通用：把 OpenAI 的字段发给火山 / DeepSeek /
+    # 智谱 / 百炼，它们的思考会静默失效；而把未识别的中转站当作通用 OpenAI，则可能被
+    # 直接拒收。让用户指定，好过继续猜。
+    def add_widget_profile(self, parent, config):
+        def init(widget):
+            platform = config.get("platforms").get(self.key) or {}
+            items = [name for name in PROFILE_ORDER if name in THINKING_PROFILES]
+            widget.set_items(items)
+            # 没有声明过 profile 的接口，显示兜底嗅探实际会用的那一种，
+            # 让「现在到底按哪套方言在发」在界面里可见。
+            current = platform.get("profile")
+            if current not in items:
+                current = resolve_profile_name(platform)
+            widget.set_current_index(widget.find_text(current))
+
+        def current_text_changed(widget, text: str):
+            config = self.load_config()
+            config["platforms"][self.key]["profile"] = text.strip()
+            self.save_config(config)
+
+        parent.addWidget(
+            ComboBoxCard(
+                self.tra("思考参数方言"),
+                self.tra(
+                    "决定思考参数用哪种写法。未识别的中转站用 default 原样发送 "
+                    "reasoning_effort，网关若不支持该字段会返回 503，此时应改用 "
+                    "openai（仅对 o1/o3/o4/gpt-5* 发送）或关闭思考模式。"
+                ),
                 [],
                 init = init,
                 current_text_changed = current_text_changed,

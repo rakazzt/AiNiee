@@ -507,6 +507,31 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             summary["total"]))
         for group in summary["groups"]:
             self.warning("  ×{}  {}".format(group["count"], group["signature"]))
+        hint = self._reasoning_effort_hint()
+        if hint:
+            self.warning(hint)
+
+    def _reasoning_effort_hint(self) -> str:
+        """「有错误 + 未识别网关 + 确实发了 reasoning_effort」同时成立时，说一句话。
+
+        这正是真实故障的形状：网关不认识该字段，用 503 model_unavailable 拒收，看起来
+        像模型掉线，于是排查方向整个跑偏。把三者一起点出来，就不必再查一遍。
+        判断依据取自真正的装配函数，而不是复述规则。
+        """
+        platforms = getattr(self.config, "platforms", None) or {}
+        tag = getattr(self.config, "target_platform", "") or ""
+        platform = platforms.get(tag, {}) or {}
+        if ThinkingProfiles.resolve_profile_name(platform) != ThinkingProfiles.PROFILE_DEFAULT:
+            return ""
+        try:
+            shaped = ThinkingProfiles.build_thinking_params({}, platform)
+        except Exception:
+            return ""
+        effort = shaped.get("reasoning_effort")
+        if not effort:
+            return ""
+        return ("本次向未识别网关发送了 reasoning_effort={0}；若该网关不支持此字段，"
+                "请关闭思考模式，或在接口设置里为该接口指定「思考参数方言」。".format(effort))
 
     def _log_decision_summary(self) -> None:
         """本次决策层的用量与失败明细；一次都没调用过就不出声。"""

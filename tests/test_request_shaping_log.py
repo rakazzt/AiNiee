@@ -34,6 +34,13 @@ def _load(name):
 _task, TASK_SKIP = _load("ModuleFolders.Service.TaskExecutor.AnalysisTask")
 AnalysisTask = getattr(_task, "AnalysisTask", None)
 
+class FakeHttpError(Exception):
+    """Stands in for an SDK error that carries an HTTP status."""
+
+    def __init__(self, message, status_code):
+        super().__init__(message)
+        self.status_code = status_code
+
 CUSTOM_GATEWAY = {
     "name": "Guts API STORE",
     "group": "custom",
@@ -103,6 +110,67 @@ class TestRequestShapingLog(unittest.TestCase):
     def test_a_platform_with_no_config_does_not_raise(self):
         text = self.log_for(platform())
         self.assertIsInstance(text, str)
+
+
+@unittest.skipUnless(AnalysisTask is not None, TASK_SKIP)
+class TestReasoningEffortHint(unittest.TestCase):
+    """The hint that turns a 503 investigation into one line.
+
+    The failure shape is: an unrecognised gateway, thinking on, so a bare
+    reasoning_effort goes out, and the gateway answers 503 model_unavailable. That reads
+    like the model is offline, which is how a day went missing. The hint may only appear
+    when all three hold - a hint that cries wolf is worse than none.
+    """
+
+    def setUp(self):
+        from ModuleFolders.Log import ErrorLedger
+        ErrorLedger.reset()
+        for _ in range(3):
+            ErrorLedger.record(FakeHttpError("model_unavailable", 503))
+
+    def summary_for(self, platform_config):
+        task = AnalysisTask.__new__(AnalysisTask)
+        task.config = SimpleNamespace(platforms={"c1": platform_config}, target_platform="c1")
+        lines = []
+        task.info = lines.append
+        task.warning = lines.append
+        task._log_error_summary()
+        return "\n".join(lines)
+
+    def test_the_field_is_named_when_an_unknown_gateway_was_sent_it(self):
+        text = self.summary_for(platform(think_switch=True, think_depth="high"))
+        self.assertIn("reasoning_effort=high", text)
+        self.assertIn("未识别网关", text)
+        self.assertIn("关闭思考模式", text)
+
+    def test_no_hint_when_nothing_extra_was_sent(self):
+        text = self.summary_for(platform(think_switch=False, temperature=1.0))
+        self.assertNotIn("reasoning_effort", text)
+
+    def test_no_hint_for_a_gateway_whose_dialect_is_known(self):
+        # OpenRouter carries its effort inside extra_body, so the OpenAI field is not the
+        # suspect and the hint must stay quiet.
+        text = self.summary_for(platform(name="openrouterv2", profile="openrouter",
+                                         api_url="https://openrouter.ai/api/v1",
+                                         think_switch=True, think_depth="high"))
+        self.assertNotIn("reasoning_effort=", text)
+
+
+class TestProfileChoices(unittest.TestCase):
+    """Every dialect the code can resolve must be selectable in the interface settings.
+
+    Adding a profile to the registry without offering it would leave users hand-editing
+    config.json - which is the gap this selector exists to close.
+    """
+
+    def test_the_selector_offers_exactly_the_registry(self):
+        from ModuleFolders.Infrastructure.LLMRequester.ThinkingProfiles import PROFILES, PROFILE_ORDER
+        self.assertEqual(set(PROFILE_ORDER), set(PROFILES),
+                         set(PROFILE_ORDER) ^ set(PROFILES))
+
+    def test_the_selector_has_no_duplicates(self):
+        from ModuleFolders.Infrastructure.LLMRequester.ThinkingProfiles import PROFILE_ORDER
+        self.assertEqual(len(PROFILE_ORDER), len(set(PROFILE_ORDER)))
 
 
 if __name__ == "__main__":

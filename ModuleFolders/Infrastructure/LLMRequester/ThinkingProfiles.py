@@ -23,6 +23,19 @@ PROFILE_ZHIPU = "zhipu"
 PROFILE_DASHSCOPE = "dashscope"
 PROFILE_DEFAULT = "default"
 
+# 提供给用户选择的顺序。放在这里而不是设置页里：这样「代码能解析的方言」与「用户能
+# 选到的方言」是否一致，不需要 Qt 就能测。
+PROFILE_ORDER = (
+    PROFILE_DEFAULT,
+    PROFILE_OPENAI,
+    PROFILE_OPENROUTER,
+    PROFILE_DEEPSEEK,
+    PROFILE_VOLCENGINE,
+    PROFILE_ZHIPU,
+    PROFILE_DASHSCOPE,
+    PROFILE_XAI,
+)
+
 VALID_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
 
