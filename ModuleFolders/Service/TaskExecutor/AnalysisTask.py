@@ -12,11 +12,16 @@ from ModuleFolders.Log import ErrorLedger
 from ModuleFolders.Log.Log import LogMixin
 from ModuleFolders.Infrastructure.DecisionEngine import DecisionEngine, DecisionSettings
 from ModuleFolders.Infrastructure.DecisionEngine.ConsistencySweep import ConsistencySweep, group_sources
+from ModuleFolders.Infrastructure.LLMRequester import ThinkingProfiles
 from ModuleFolders.Infrastructure.LLMRequester.LLMRequester import LLMRequester
 from ModuleFolders.Infrastructure.RequestLimiter.RequestLimiter import RequestLimiter
 from ModuleFolders.Infrastructure.TaskConfig.TaskConfig import TaskConfig
 from ModuleFolders.Infrastructure.Tokener.Tokener import Tokener
 from ModuleFolders.Service.TaskExecutor import TranslatorUtil
+
+
+# 剔除清单一次最多列出多少项。曾经只有 10 项，用户无法核对 97 项剔除里有没有角色名。
+MAX_DROPPED_LISTED = 40
 
 
 class AnalysisTask(ConfigMixin, LogMixin, Base):
@@ -86,6 +91,7 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                 )
             )
             self._log_interface()
+            self._log_request_shaping()
             ErrorLedger.reset()  # 本次运行的错误从零开始统计
             self._log_decision_layer()
 
@@ -437,6 +443,57 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
             platform.get("api_format") or "(未声明)",
         ))
 
+    def _log_request_shaping(self) -> None:
+        """写出本次请求会带上哪些参数，以及这些参数是从哪里推导出来的。
+
+        真实故障：一个未识别的中转站配上 think_switch=max，每个请求都带上
+        reasoning_effort=max；网关时好时坏地以 503 model_unavailable 拒绝，排查
+        花了一整天。这一行让同类问题第一眼就能看见。
+
+        参数不是照抄配置，而是调用真正的装配函数取结果 —— 复述规则就等于埋一个
+        会和实现分叉的第二份真相。
+        """
+        platforms = getattr(self.config, "platforms", None) or {}
+        tag = getattr(self.config, "target_platform", "") or ""
+        platform = platforms.get(tag, {}) or {}
+
+        profile = ThinkingProfiles.resolve_profile_name(platform)
+        temperature = platform.get("temperature", 1.0)
+
+        # 真正会出现在请求里的字段，由装配函数给出，而不是由这里的判断给出。
+        try:
+            shaped = ThinkingProfiles.build_thinking_params({}, platform)
+        except Exception as error:  # 装配失败会让请求本身出错，值得单独说出来
+            self.warning("请求参数装配失败（请求将退回平台默认参数）: {}".format(error))
+            shaped = {}
+        injected = sorted(k for k in shaped if k not in ("extra_body",))
+        extra_body = shaped.get("extra_body") or {}
+
+        parts = [
+            "profile={0}".format(profile),
+            "think_switch={0}".format(bool(platform.get("think_switch"))),
+            "think_depth={0}".format(platform.get("think_depth") or "medium"),
+        ]
+        if temperature != 1:
+            parts.append("temperature={0}".format(temperature))
+
+        msg = "请求参数: " + ", ".join(parts)
+
+        # 实际会出现在请求里的东西：顶层字段，以及 extra_body 里的每一项。
+        # 只看顶层，会把走 extra_body 的 profile 报成「什么都没发」——那是一句假话。
+        sent = ["{0}={1}".format(key, shaped.get(key)) for key in injected]
+        if extra_body:
+            sent.append("extra_body." + "、extra_body.".join(sorted(extra_body)))
+
+        if sent:
+            msg += " → 将发送 " + "，".join(sent)
+            if profile == ThinkingProfiles.PROFILE_DEFAULT:
+                msg += "（未识别网关，该字段是否被接受未知）"
+        else:
+            msg += " → 不发送额外思考参数"
+
+        self.info(msg)
+
     def _log_error_summary(self) -> None:
         """本次运行里被折叠掉的请求错误；一次都没有就不出声。
 
@@ -462,6 +519,10 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
                 self.warning(line)
         else:
             self.info(engine.describe())
+        # 分项用量：巡检有三类判定（通用性 / 派生关系 / 译法一致），合并成一个总数
+        # 就说不出钱花在哪一类上，也就无法判断该关掉哪一类。
+        for line in engine.purpose_lines():
+            self.info(line)
 
     def _apply_consistency_sweep(self, raw_grouped_inputs):
         """判定候选 source 之间的关系，并剔除不安全的词条。
@@ -491,10 +552,13 @@ class AnalysisTask(ConfigMixin, LogMixin, Base):
 
         dropped = set(outcome.dropped)
         if dropped:
-            preview = "、".join(sorted(dropped)[:10])
+            # 一次能列出的条目：超过就明说还有多少没列，而不是假装列全了。
+            # 曾经只列 10 条，用户无法核对被剔除的 97 项里有没有角色名。
+            listed = sorted(dropped)[:MAX_DROPPED_LISTED]
+            remainder = len(dropped) - len(listed)
             self.warning("术语一致性巡检：剔除 {} 个过于笼统的词条（单字 {} 个，通用词 {} 个）：{}{}".format(
                 len(dropped), len(outcome.single_character), len(outcome.generic),
-                preview, " 等" if len(dropped) > 10 else ""))
+                "、".join(listed), "，其余 {} 项未列出".format(remainder) if remainder > 0 else ""))
 
         if outcome.keep_separate:
             preview = "；".join("{} ⊂ {}".format(short, long) for short, long in sorted(outcome.keep_separate)[:5])

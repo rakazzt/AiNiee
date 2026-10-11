@@ -80,6 +80,9 @@ class DecisionEngine:
         self.output_tokens = 0
         self.cost = 0.0
         self.last_error = ""
+        # Per-purpose counters. One blended total cannot answer "which phase is costing me
+        # the money", and the sweep runs three different judgements through this class.
+        self.purposes: dict = {}
         # Per-failure detail, bounded. A count alone cannot be acted on months later;
         # the HTTP status and the provider's own words can.
         self.failure_detail: list = []
@@ -121,14 +124,18 @@ class DecisionEngine:
         Never raises for a provider problem: that is the fail-open policy. A caller that
         needs to distinguish "answered no" from "could not ask" tests for None.
         """
+        question_count = len(questions) if isinstance(questions, dict) else 0
         self.calls += 1
-        self.questions_asked += len(questions) if isinstance(questions, dict) else 0
+        self.questions_asked += question_count
+        counters = self._purpose_counters(purpose)
+        counters["calls"] += 1
+        counters["questions"] += question_count
         try:
             body = self.client.evaluate(state, questions)
         except DecisionError as error:
             self._record_failure(purpose, error)
             return None
-        self._record_usage(body)
+        self._record_usage(body, purpose)
         return body.get("answers")
 
     def decide_batch(self, items, build, purpose: str = "", extra_state: dict = None,
@@ -193,16 +200,28 @@ class DecisionEngine:
 
     # --- accounting -----------------------------------------------------------
 
-    def _record_usage(self, body: dict) -> None:
+    def _purpose_counters(self, purpose: str) -> dict:
+        """The running counters for one purpose, created on first use."""
+        key = purpose or "未标注用途"
+        return self.purposes.setdefault(
+            key, {"calls": 0, "questions": 0, "failures": 0, "input_tokens": 0, "cost": 0.0})
+
+    def _record_usage(self, body: dict, purpose: str = "") -> None:
         usage = SystemOneClient.usage_of(body)
-        self.input_tokens += usage.get("input_tokens", 0)
+        input_tokens = usage.get("input_tokens", 0)
+        cost = usage.get("cost", 0.0)
+        self.input_tokens += input_tokens
         self.output_tokens += usage.get("output_tokens", 0)
-        self.cost += usage.get("cost", 0.0)
+        self.cost += cost
+        counters = self._purpose_counters(purpose)
+        counters["input_tokens"] += input_tokens
+        counters["cost"] += cost
 
     def _record_failure(self, purpose: str, error: Exception) -> None:
         """Count a failure and keep enough about it to diagnose it later."""
         self.failures += 1
         self.last_error = str(error)
+        self._purpose_counters(purpose)["failures"] += 1
         if purpose:
             self.last_purpose = purpose
         if len(self.failure_detail) < MAX_FAILURE_DETAIL:
@@ -223,6 +242,7 @@ class DecisionEngine:
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "cost": round(self.cost, 6),
+            "purposes": {key: dict(value) for key, value in self.purposes.items()},
             "last_error": self.last_error,
             "model": self.model,
             "endpoint": self.endpoint,
@@ -267,6 +287,23 @@ class DecisionEngine:
             # Fixed notation: a log line reading 8.1e-05 is not a number anyone checks.
             cost="{:.8f}".format(self.cost),
         )
+
+    def purpose_lines(self) -> list:
+        """One line per purpose, so a glance shows which judgement is spending the money.
+
+        Only worth printing when more than one purpose ran; a single-purpose job is already
+        fully described by the total above.
+        """
+        if len(self.purposes) < 2:
+            return []
+        lines = []
+        for key in sorted(self.purposes, key=lambda k: (-self.purposes[k]["input_tokens"], k)):
+            counters = self.purposes[key]
+            line = "  {0}: 调用 {1} 次，提问 {2} 个，失败 {3} 次，输入 {4} Tokens，花费 {5:.8f} USD".format(
+                key, counters["calls"], counters["questions"], counters["failures"],
+                SystemOneClient.count_of(counters["input_tokens"]), counters["cost"])
+            lines.append(line)
+        return lines
 
     def failure_lines(self) -> list:
         """One line per recorded failure, with its kind, HTTP status and provider words."""

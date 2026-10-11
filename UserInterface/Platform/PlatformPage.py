@@ -25,6 +25,7 @@ from qfluentwidgets import (
 from ModuleFolders.Base.Base import Base
 from ModuleFolders.Config.Config import ConfigMixin
 from ModuleFolders.Config.FilePathConfig import platform_preset_path
+from ModuleFolders.Log.Log import LogMixin
 from UserInterface.Platform.APIBindingDialog import APIBindingDialog
 from UserInterface.Platform.APIEditPage import APIEditPage
 from UserInterface.Platform.APIItemCard import APIItemCard
@@ -202,7 +203,7 @@ class InterfaceHeaderCard(CardWidget, ConfigMixin):
             )
 
 
-class PlatformPage(QFrame, ConfigMixin, ToastMixin, Base):
+class PlatformPage(QFrame, ConfigMixin, LogMixin, ToastMixin, Base):
     API_ROLE_KEYS = ("extract", "translate", "polish", "proofread")
     API_SETTINGS_MIGRATION_KEY = "_active_follow_migration_done"
 

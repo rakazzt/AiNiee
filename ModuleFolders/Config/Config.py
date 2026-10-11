@@ -10,6 +10,7 @@ from ModuleFolders.Config.FilePathConfig import (
     platform_preset_path,
     resource_path,
 )
+from ModuleFolders.Config import ConfigChangeLog
 from ModuleFolders.Infrastructure.Platform.RuntimeSetup import migrate_config_if_needed
 from ModuleFolders.Domain.RegexSwitchHelper import RegexSwitchHelper
 
@@ -183,6 +184,13 @@ class ConfigMixin:
             if old == new:
                 return old
 
+            # 改动必须留痕：哪次改了什么，是排查「昨天还好、今天就不行」的唯一线索。
+            # 日志失败绝不能让保存失败，所以整段包在 try 里。
+            try:
+                changes = ConfigChangeLog.describe(old, new)
+            except Exception:
+                changes = []
+
             for key, value in new.items():
                 old[key] = value
 
@@ -191,6 +199,20 @@ class ConfigMixin:
             with open(tmp_path, "w", encoding="utf-8") as writer:
                 writer.write(json.dumps(old, indent=4, ensure_ascii=False))
             os.replace(tmp_path, ConfigMixin.CONFIG_PATH)
+
+        if changes:
+            # 配置已经落盘，日志只是旁证：记录改动绝不能反过来把保存弄失败，
+            # 所以连打印带调用一起包住。调用方通常混入 LogMixin，没有则退回控制台。
+            try:
+                emit = getattr(self, "info", None)
+                for line in changes:
+                    message = "配置已更改: " + line
+                    if callable(emit):
+                        emit(message)
+                    else:
+                        print("[[yellow]{}[/]]".format(message))
+            except Exception:
+                pass
 
         return old
 

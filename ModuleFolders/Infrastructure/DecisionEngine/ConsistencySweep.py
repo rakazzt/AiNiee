@@ -101,7 +101,10 @@ def generic_question(index: int) -> dict:
             ("Is `items.{0}.source` too generic or too common to be a reliable glossary term? "
              "Answer yes for a single character, an everyday word, an honorific, or a fragment "
              "that would also match unrelated text - anything that would be wrong to force one "
-             "fixed translation onto.").format(index),
+             "fixed translation onto. "
+             "A proper noun is NOT generic, even when it is short or reads like an ordinary "
+             "word: a person, place, organisation, brand or invented name belongs to this work "
+             "alone and must be kept.").format(index),
             true_meaning="Too generic: forcing one translation would damage unrelated text.",
             false_meaning="Specific enough to be a real term in this work.",
         ),
